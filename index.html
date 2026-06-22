@@ -1,16 +1,16 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>SANVI — El Cuadre, Camión &amp; Casa</title>
+<title>SANVI â€” El Cuadre, CamiÃ³n &amp; Casa</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   EL CUADRE — DESIGN TOKENS
-   Paleta inspirada en bitácoras de carga, tickets de pesaje
+   EL CUADRE â€” DESIGN TOKENS
+   Paleta inspirada en bitÃ¡coras de carga, tickets de pesaje
    y cajas de banano. Modo oscuro para uso en ruta / madrugada.
    ============================================================ */
 :root{
@@ -317,7 +317,7 @@ a{color:var(--yellow);}
 .fg-title{font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;margin-top:2px;}
 .fg-label{font-family:var(--font-mono);font-weight:700;font-size:15px;color:var(--yellow);margin-top:1px;}
 
-/* ---------- Badges chicos (carguero, factura, semáforo) ---------- */
+/* ---------- Badges chicos (carguero, factura, semÃ¡foro) ---------- */
 .mini-badge{
   display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;
   padding:2px 7px;border-radius:999px;letter-spacing:.02em;
@@ -340,7 +340,7 @@ a{color:var(--yellow);}
 .dash-block.no-tuyo{background:linear-gradient(155deg,#4a3d28,var(--surface));}
 .dash-block.debes{background:linear-gradient(155deg,#4a2e28,var(--surface));}
 
-/* ---------- Vista lado a lado (este mes / próximo mes) ---------- */
+/* ---------- Vista lado a lado (este mes / prÃ³ximo mes) ---------- */
 .side-by-side{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .sbs-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 13px;}
 .sbs-card .lbl{font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.08em;}
@@ -404,7 +404,7 @@ a{color:var(--yellow);}
   width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
 }
 
-/* ---------- Mini chart (sin librerías externas) ---------- */
+/* ---------- Mini chart (sin librerÃ­as externas) ---------- */
 .chart-wrap{position:relative;}
 .vbars{display:flex;align-items:flex-end;gap:7px;height:128px;padding-top:4px;}
 .vbars .vb-col{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;min-width:0;}
@@ -482,7 +482,7 @@ a{color:var(--yellow);}
     <div class="header-top">
       <div class="brand">
         <span class="brand-name">SANVI</span>
-        <span class="brand-tag">EL CUADRE · CAMIÓN + CASA</span>
+        <span class="brand-tag">EL CUADRE Â· CAMIÃ“N + CASA</span>
         <span class="sync-pill" id="syncPill"><span class="sync-dot"></span><span id="syncPillText">Sin revisar</span></span>
       </div>
       <button class="icon-btn" id="btnAlerts" title="Alertas">
@@ -496,9 +496,9 @@ a{color:var(--yellow);}
         <button class="period-mode" data-mode="mes">Mes</button>
       </div>
       <div class="period-nav">
-        <button id="periodPrev" aria-label="Periodo anterior">‹</button>
-        <span class="period-label" id="periodLabel">—</span>
-        <button id="periodNext" aria-label="Periodo siguiente">›</button>
+        <button id="periodPrev" aria-label="Periodo anterior">â€¹</button>
+        <span class="period-label" id="periodLabel">â€”</span>
+        <button id="periodNext" aria-label="Periodo siguiente">â€º</button>
       </div>
     </div>
   </header>
@@ -524,7 +524,7 @@ a{color:var(--yellow);}
     </button>
     <button class="nav-item" data-view="mas">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
-      Más
+      MÃ¡s
     </button>
   </nav>
 </div>
@@ -535,47 +535,47 @@ a{color:var(--yellow);}
 <script>
 'use strict';
 /* ============================================================
-   EL CUADRE — Núcleo de datos y utilidades
+   EL CUADRE â€” NÃºcleo de datos y utilidades
    ============================================================ */
 
 // ---------- Constantes ----------
 const DB_KEY = 'elcuadre_db_v1';
-const SCHEMA_VERSION = 2; // v2: costos en ruta, carguero, cuentas por cobrar con semáforo, COSTO/EGRESO
+const SCHEMA_VERSION = 2; // v2: costos en ruta, carguero, cuentas por cobrar con semÃ¡foro, COSTO/EGRESO
 const SYNC_URL = 'https://script.google.com/macros/s/AKfycbyN8_QNyMssdU_IR35rlhYmb1mpmbfkHiq5gGOGrU6MWNbpTyiiSi2CNdzqAgaznzeM/exec';
 const SYNC_TOKEN = 'Sanvi1870';
 const AUTO_SYNC_ENABLED = true;
 const AUTO_SYNC_DEBOUNCE_MS = 1200;
 
 const DEFAULT_CATEGORIES = {
-  cargoType: ['Caja de Banano','Cartón','Domicilios/Mudanzas','Otros fletes'],
-  origenViaje: ['Me llamó el productor','Me envió un carrero','Yo envié carrero'],
+  cargoType: ['Caja de Banano','CartÃ³n','Domicilios/Mudanzas','Otros fletes'],
+  origenViaje: ['Me llamÃ³ el productor','Me enviÃ³ un carrero','Yo enviÃ© carrero'],
   // grupo: 'camion' (afecta utilidad operativa) | 'personal' (gasto de vida)
   // tipo:  'costo' (ligado directamente a generar un viaje/ingreso) | 'egreso' (no genera ingreso directo)
   expenseCategory: [
     {nombre:'Combustible', grupo:'camion', tipo:'costo'},
     {nombre:'Peajes', grupo:'camion', tipo:'costo'},
-    {nombre:'Guardianía/Parqueadero', grupo:'camion', tipo:'egreso'},
+    {nombre:'GuardianÃ­a/Parqueadero', grupo:'camion', tipo:'egreso'},
     {nombre:'Mantenimiento y Repuestos', grupo:'camion', tipo:'egreso'},
-    {nombre:'Accesorios de Sujeción', grupo:'camion', tipo:'egreso'},
+    {nombre:'Accesorios de SujeciÃ³n', grupo:'camion', tipo:'egreso'},
     {nombre:'Legales y Fijos', grupo:'camion', tipo:'egreso'},
-    {nombre:'Cuota Compañía', grupo:'camion', tipo:'egreso'},
-    {nombre:'Préstamos y Deudas', grupo:'personal', tipo:'egreso'},
+    {nombre:'Cuota CompaÃ±Ã­a', grupo:'camion', tipo:'egreso'},
+    {nombre:'PrÃ©stamos y Deudas', grupo:'personal', tipo:'egreso'},
     {nombre:'Arriendo', grupo:'personal', tipo:'egreso'},
     {nombre:'Comida y Suministros', grupo:'personal', tipo:'egreso'},
     {nombre:'Gastos Personales', grupo:'personal', tipo:'egreso'},
     {nombre:'Comisiones Bancarias', grupo:'personal', tipo:'egreso'},
   ],
-  maintenanceZone: ['Motor','Cabina','Cajón','Llantas','Chasis'],
-  legalType: ['Matrícula','Renovación de Licencia','Seguro','Multa de Tránsito'],
-  establishment: ['Tuti','Tía','Mi Comisariato','Supermaxi','Tienda de Barrio','Restaurante de carretera'],
+  maintenanceZone: ['Motor','Cabina','CajÃ³n','Llantas','Chasis'],
+  legalType: ['MatrÃ­cula','RenovaciÃ³n de Licencia','Seguro','Multa de TrÃ¡nsito'],
+  establishment: ['Tuti','TÃ­a','Mi Comisariato','Supermaxi','Tienda de Barrio','Restaurante de carretera'],
   gasStation: ['Primax','Petroecuador','Shell','Mobil','Otro'],
-  causaMora: ['Cliente no pagó','Falta de caja','Otro'],
+  causaMora: ['Cliente no pagÃ³','Falta de caja','Otro'],
   commitmentTemplates: [
     {nombre:'SOAT', categoriaGasto:'Legales y Fijos', frecuencia:'mensual'},
-    {nombre:'Matrícula', categoriaGasto:'Legales y Fijos', frecuencia:'mensual'},
-    {nombre:'Revisión técnica', categoriaGasto:'Legales y Fijos', frecuencia:'mensual'},
-    {nombre:'Mecánico mensual', categoriaGasto:'Mantenimiento y Repuestos', frecuencia:'mensual'},
-    {nombre:'Cuota Compañía', categoriaGasto:'Cuota Compañía', frecuencia:'mensual', esCuotaCompania:true},
+    {nombre:'MatrÃ­cula', categoriaGasto:'Legales y Fijos', frecuencia:'mensual'},
+    {nombre:'RevisiÃ³n tÃ©cnica', categoriaGasto:'Legales y Fijos', frecuencia:'mensual'},
+    {nombre:'MecÃ¡nico mensual', categoriaGasto:'Mantenimiento y Repuestos', frecuencia:'mensual'},
+    {nombre:'Cuota CompaÃ±Ã­a', categoriaGasto:'Cuota CompaÃ±Ã­a', frecuencia:'mensual', esCuotaCompania:true},
   ],
 };
 
@@ -585,7 +585,7 @@ const PAY_METHODS = ['Efectivo','Transferencia','Tarjeta'];
 let DB = null;
 let STATE = {
   view: 'resumen',
-  subview: null, // para submenú de "Más": 'productores' | 'reportes' | 'config'
+  subview: null, // para submenÃº de "MÃ¡s": 'productores' | 'reportes' | 'config'
   periodMode: 'semana', // 'semana' | 'mes'
   periodAnio: null,
   periodSemana: null,
@@ -605,9 +605,9 @@ function parseISO(iso){
   return new Date(y, m-1, d);
 }
 
-// Semana ISO-8601 (lunes a domingo, semana 1 = la que contiene el primer jueves del año).
-// BUGFIX: el cálculo anterior usaba "día del año / 7" y desfasaba ~1 semana en gran
-// parte del año (ej. 22 jun 2026 daba semana 25 en vez de 26).
+// Semana ISO-8601 (lunes a domingo, semana 1 = la que contiene el primer jueves del aÃ±o).
+// BUGFIX: el cÃ¡lculo anterior usaba "dÃ­a del aÃ±o / 7" y desfasaba ~1 semana en gran
+// parte del aÃ±o (ej. 22 jun 2026 daba semana 25 en vez de 26).
 function getWeekNumber(date){
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   const dayNum = (d.getUTCDay() + 6) % 7; // lunes=0 ... domingo=6
@@ -617,8 +617,8 @@ function getWeekNumber(date){
   firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNum + 3);
   return 1 + Math.round((d - firstThursday) / (7*86400000));
 }
-// Cuántas semanas ISO tiene un año (52 o 53) — necesario para que la navegación
-// de periodos (anterior/siguiente) no se desalinee con getWeekNumber en años de 53 semanas.
+// CuÃ¡ntas semanas ISO tiene un aÃ±o (52 o 53) â€” necesario para que la navegaciÃ³n
+// de periodos (anterior/siguiente) no se desalinee con getWeekNumber en aÃ±os de 53 semanas.
 function weeksInISOYear(year){
   const p = (y)=> (y + Math.floor(y/4) - Math.floor(y/100) + Math.floor(y/400)) % 7;
   return (p(year)===4 || p(year-1)===3) ? 53 : 52;
@@ -684,7 +684,7 @@ function defaultDB(){
   return {
     meta: {
       schemaVersion: SCHEMA_VERSION,
-      empresaNombre: 'Empresa Única',
+      empresaNombre: 'Empresa Ãšnica',
       pin: null,
       diasMoraAlerta: 15,
       diasPlazoCobro: 8,
@@ -704,14 +704,14 @@ function defaultDB(){
     commitments: [],   // deudas (con saldo) y fijos recurrentes (arriendo, etc.)
     maintenance: [],   // mantenimiento preventivo por kilometraje
     categories: JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)),
-    // IDs borrados en este teléfono que todavía no se han reflejado (borrado) en la nube.
-    // Sin esto, un registro eliminado localmente "resucita" la próxima vez que se restaura
+    // IDs borrados en este telÃ©fono que todavÃ­a no se han reflejado (borrado) en la nube.
+    // Sin esto, un registro eliminado localmente "resucita" la prÃ³xima vez que se restaura
     // desde la nube, porque el respaldo solo sabe agregar/actualizar filas, no borrarlas.
     pendingDeletes: { trips:[], expenses:[], producers:[], transfers:[], commitments:[], maintenance:[] },
   };
 }
-// Si la base ya existía antes de añadir un campo nuevo (ej. sincronización),
-// esto completa lo que falte sin pisar lo que el usuario ya tenía guardado.
+// Si la base ya existÃ­a antes de aÃ±adir un campo nuevo (ej. sincronizaciÃ³n),
+// esto completa lo que falte sin pisar lo que el usuario ya tenÃ­a guardado.
 function fillDefaults(db){
   const def = defaultDB();
   db.meta = Object.assign({}, def.meta, db.meta||{});
@@ -722,19 +722,19 @@ function fillDefaults(db){
   Object.keys(def.pendingDeletes).forEach(k=>{ if (!Array.isArray(db.pendingDeletes[k])) db.pendingDeletes[k] = []; });
   db.categories = Object.assign({}, def.categories, db.categories||{});
   if (db.meta.pin && !db.meta.settingsUpdatedAt) db.meta.settingsUpdatedAt = nowISO();
-  // Migración: categorías de gasto guardadas antes de la v2 no tienen 'tipo' (COSTO/EGRESO).
+  // MigraciÃ³n: categorÃ­as de gasto guardadas antes de la v2 no tienen 'tipo' (COSTO/EGRESO).
   if (Array.isArray(db.categories.expenseCategory)){
     db.categories.expenseCategory.forEach(c=>{
       if (!c.tipo) c.tipo = (c.nombre==='Combustible' || c.nombre==='Peajes') ? 'costo' : 'egreso';
     });
-    if (!db.categories.expenseCategory.find(c=>c.nombre==='Cuota Compañía')){
-      db.categories.expenseCategory.push({nombre:'Cuota Compañía', grupo:'camion', tipo:'egreso'});
+    if (!db.categories.expenseCategory.find(c=>c.nombre==='Cuota CompaÃ±Ã­a')){
+      db.categories.expenseCategory.push({nombre:'Cuota CompaÃ±Ã­a', grupo:'camion', tipo:'egreso'});
     }
   }
   if (!Array.isArray(db.categories.origenViaje) || !db.categories.origenViaje.length) db.categories.origenViaje = def.categories.origenViaje;
   if (!Array.isArray(db.categories.causaMora) || !db.categories.causaMora.length) db.categories.causaMora = def.categories.causaMora;
   if (!Array.isArray(db.categories.commitmentTemplates) || !db.categories.commitmentTemplates.length) db.categories.commitmentTemplates = def.categories.commitmentTemplates;
-  // Migración: viajes guardados antes de la v2 no tienen costos en ruta, carguero, etc.
+  // MigraciÃ³n: viajes guardados antes de la v2 no tienen costos en ruta, carguero, etc.
   db.trips.forEach(t=>{
     if (!t.costosRuta) t.costosRuta = {diesel:0, peaje:0, comida:0, otro:0};
     if (t.carguero===undefined) t.carguero = null; // {nombre, monto, pagado, fechaPago}
@@ -744,16 +744,16 @@ function fillDefaults(db){
     if (t.facturaPct===undefined) t.facturaPct = 0;
     if (!t.combustible) t.combustible = {salida:null, regreso:null};
   });
-  // Migración: compromisos guardados antes de la v2 no tienen plazo/clasificación/causa de mora.
+  // MigraciÃ³n: compromisos guardados antes de la v2 no tienen plazo/clasificaciÃ³n/causa de mora.
   db.commitments.forEach(c=>{
     if (!c.plazo) c.plazo = 'corto';
     if (!c.clasificacion) c.clasificacion = 'egreso';
-    if (c.esCuotaCompania===undefined) c.esCuotaCompania = (c.categoriaGasto==='Cuota Compañía');
+    if (c.esCuotaCompania===undefined) c.esCuotaCompania = (c.categoriaGasto==='Cuota CompaÃ±Ã­a');
     if (!Array.isArray(c.historialMora)) c.historialMora = []; // [{fecha, excedente, causa}]
   });
   return db;
 }
-let dbCorruptionInfo = null; // si loadDB() encuentra datos dañados, queda info aquí para avisar tras el primer render
+let dbCorruptionInfo = null; // si loadDB() encuentra datos daÃ±ados, queda info aquÃ­ para avisar tras el primer render
 function loadDB(){
   let raw;
   try { raw = localStorage.getItem(DB_KEY); } catch(e){ raw = null; }
@@ -761,12 +761,12 @@ function loadDB(){
     try { return fillDefaults(JSON.parse(raw)); }
     catch(e){
       // No descartamos el texto crudo en silencio: lo guardamos aparte por si se puede
-      // recuperar a mano más adelante, y dejamos marcado el problema para avisar al
-      // usuario apenas la app termine de cargar — abrir con una base vacía sin avisar
-      // podría hacer pensar que se perdió todo el negocio.
+      // recuperar a mano mÃ¡s adelante, y dejamos marcado el problema para avisar al
+      // usuario apenas la app termine de cargar â€” abrir con una base vacÃ­a sin avisar
+      // podrÃ­a hacer pensar que se perdiÃ³ todo el negocio.
       let backupKey = null;
       try {
-        backupKey = DB_KEY + '_dañado_' + Date.now();
+        backupKey = DB_KEY + '_daÃ±ado_' + Date.now();
         localStorage.setItem(backupKey, raw);
       } catch(_) { /* si ni el respaldo cabe, seguimos igual */ }
       dbCorruptionInfo = { backupKey, message: (e && e.message) || String(e) };
@@ -777,16 +777,16 @@ function loadDB(){
 function warnIfDbCorrupted(){
   if (!dbCorruptionInfo) return;
   const info = dbCorruptionInfo;
-  dbCorruptionInfo = null; // mostrar una sola vez por sesión
-  openModal('⚠️ No se pudo leer tus datos guardados', `
+  dbCorruptionInfo = null; // mostrar una sola vez por sesiÃ³n
+  openModal('âš ï¸ No se pudo leer tus datos guardados', `
     <p style="font-size:13.5px;color:var(--text-dim);line-height:1.5;">
-      El teléfono tenía datos guardados pero estaban dañados y no se pudieron abrir.
+      El telÃ©fono tenÃ­a datos guardados pero estaban daÃ±ados y no se pudieron abrir.
       Por seguridad <b>no los borramos</b>: quedaron guardados aparte en este mismo
-      navegador${info.backupKey?` (clave técnica: <code style="font-size:11px;">${esc(info.backupKey)}</code>)`:''}.
+      navegador${info.backupKey?` (clave tÃ©cnica: <code style="font-size:11px;">${esc(info.backupKey)}</code>)`:''}.
     </p>
     <p style="font-size:13.5px;color:var(--text-dim);line-height:1.5;margin-top:8px;">
-      La app abrió con una base <b>vacía</b> para que puedas seguir trabajando.
-      Si configuraste la sincronización, ve a <b>Más → Sincronización</b> y
+      La app abriÃ³ con una base <b>vacÃ­a</b> para que puedas seguir trabajando.
+      Si configuraste la sincronizaciÃ³n, ve a <b>MÃ¡s â†’ SincronizaciÃ³n</b> y
       usa <b>"Restaurar desde la nube"</b> para recuperar tus datos operativos.
     </p>
   `, `<button class="btn btn-primary" data-action="close-modal">Entendido</button>`);
@@ -808,7 +808,7 @@ function showToast(msg){
   setTimeout(()=>el.remove(), 2200);
 }
 
-// ---------- Periodo: claves, etiquetas, navegación ----------
+// ---------- Periodo: claves, etiquetas, navegaciÃ³n ----------
 function periodKey(mode, anio, semana, mes){
   return mode==='semana' ? `${anio}-S${pad2(semana)}` : `${anio}-M${pad2(mes)}`;
 }
@@ -816,7 +816,7 @@ function currentPeriodKey(){
   return periodKey(STATE.periodMode, STATE.periodAnio, STATE.periodSemana, STATE.periodMes);
 }
 function currentPeriodLabel(){
-  if (STATE.periodMode==='semana') return `Semana ${STATE.periodSemana} · ${STATE.periodAnio}`;
+  if (STATE.periodMode==='semana') return `Semana ${STATE.periodSemana} Â· ${STATE.periodAnio}`;
   return `${MES_NOMBRES[STATE.periodMes-1]} ${STATE.periodAnio}`;
 }
 function initPeriodToNow(){
@@ -840,7 +840,7 @@ function shiftPeriod(dir){
     STATE.periodMes = m; STATE.periodAnio = y;
   }
 }
-// Itera periodos hacia atrás incluyendo el actual: [{key,label,anio,semana,mes}, ...] orden cronológico
+// Itera periodos hacia atrÃ¡s incluyendo el actual: [{key,label,anio,semana,mes}, ...] orden cronolÃ³gico
 function lastNPeriods(n){
   const out = [];
   let anio = STATE.periodAnio, semana = STATE.periodSemana, mes = STATE.periodMes;
@@ -870,7 +870,7 @@ function inPeriodCustom(item, anio, semana, mes){
   return item.anio===anio && item.mes===mes;
 }
 
-// ---------- Categorías helpers ----------
+// ---------- CategorÃ­as helpers ----------
 function getExpenseCategory(nombre){
   return DB.categories.expenseCategory.find(c=>c.nombre===nombre);
 }
@@ -902,15 +902,15 @@ function addCactusCategory(catKey, value){
   }
 }
 
-// ---------- Cálculos financieros centrales ----------
+// ---------- CÃ¡lculos financieros centrales ----------
 function tripSaldoPendiente(t){
   return round2(Math.max(0, (Number(t.valorFlete)||0) + serviciosAdicionalesTotal(t) - (Number(t.anticipo)||0) - (Number(t.descuento)||0)));
 }
 function round2(n){ return Math.round((Number(n)||0)*100)/100; }
-// Escapa HTML para cualquier texto libre que el usuario escribió (nombres, notas, rutas,
-// categorías personalizadas, etc.) antes de insertarlo en el DOM. Sin esto, un nombre o nota
-// que contenga < > & " podía romper el diseño o, en el peor caso, inyectar HTML/script.
-// Se aplica solo al renderizar (no al guardar), así el dato crudo queda intacto en la base
+// Escapa HTML para cualquier texto libre que el usuario escribiÃ³ (nombres, notas, rutas,
+// categorÃ­as personalizadas, etc.) antes de insertarlo en el DOM. Sin esto, un nombre o nota
+// que contenga < > & " podÃ­a romper el diseÃ±o o, en el peor caso, inyectar HTML/script.
+// Se aplica solo al renderizar (no al guardar), asÃ­ el dato crudo queda intacto en la base
 // y en los respaldos/CSV.
 function esc(s){
   if (s==null) return '';
@@ -934,37 +934,37 @@ function cargueroMontoTrip(t){
 }
 function tripTieneCarguero(t){ return !!(t.carguero && t.carguero.nombre); }
 function tripCargueroPendiente(t){ return tripTieneCarguero(t) && !t.carguero.pagado; }
-// Ingreso devengado del viaje: flete + servicios adicionales − descuento (sin restar costos todavía)
+// Ingreso devengado del viaje: flete + servicios adicionales âˆ’ descuento (sin restar costos todavÃ­a)
 function tripIngresoBruto(t){
   return round2((Number(t.valorFlete)||0) + serviciosAdicionalesTotal(t) - (Number(t.descuento)||0));
 }
-// Utilidad neta = Ingreso − Costos en ruta − Pago carguero − % de factura de la compañía
+// Utilidad neta = Ingreso âˆ’ Costos en ruta âˆ’ Pago carguero âˆ’ % de factura de la compaÃ±Ã­a
 function tripUtilidadNeta(t){
   return round2(tripIngresoBruto(t) - costosRutaTotal(t) - cargueroMontoTrip(t) - costoFacturaTrip(t));
 }
 
-// ---- Cuentas por cobrar: semáforo automático (item 13-16) ----
-// 🟢 dentro del plazo · 🟡 vence en 1-2 días · 🔴 +8 días sin pagar · ⚫ +15 días, riesgo real
+// ---- Cuentas por cobrar: semÃ¡foro automÃ¡tico (item 13-16) ----
+// ðŸŸ¢ dentro del plazo Â· ðŸŸ¡ vence en 1-2 dÃ­as Â· ðŸ”´ +8 dÃ­as sin pagar Â· âš« +15 dÃ­as, riesgo real
 function diasSinPagar(t){ return daysBetween(t.fecha, todayISO()); }
 function semaforoCobro(t){
   const dias = diasSinPagar(t);
   const plazo = DB.meta.diasPlazoCobro || 8;
-  if (dias >= 15) return 'negro';       // ≥15 días → riesgo real (inclusivo)
+  if (dias >= 15) return 'negro';       // â‰¥15 dÃ­as â†’ riesgo real (inclusivo)
   if (dias > plazo) return 'rojo';      // >plazo sin pagar
-  if (dias >= plazo-1) return 'amarillo'; // vence en 1-2 días
+  if (dias >= plazo-1) return 'amarillo'; // vence en 1-2 dÃ­as
   return 'verde';
 }
 const SEMAFORO_INFO = {
-  verde:   {icon:'🟢', label:'Dentro del plazo', color:'var(--green)'},
-  amarillo:{icon:'🟡', label:'Vence pronto', color:'var(--yellow)'},
-  rojo:    {icon:'🔴', label:'Más de 8 días sin pagar', color:'var(--red)'},
-  negro:   {icon:'⚫', label:'Riesgo real (+15 días)', color:'var(--text-dim)'},
+  verde:   {icon:'ðŸŸ¢', label:'Dentro del plazo', color:'var(--green)'},
+  amarillo:{icon:'ðŸŸ¡', label:'Vence pronto', color:'var(--yellow)'},
+  rojo:    {icon:'ðŸ”´', label:'MÃ¡s de 8 dÃ­as sin pagar', color:'var(--red)'},
+  negro:   {icon:'âš«', label:'Riesgo real (+15 dÃ­as)', color:'var(--text-dim)'},
 };
 // Cuentas por cobrar abiertas (todo el historial, no solo el periodo actual)
 function cuentasPorCobrarAbiertas(){
   return DB.trips.filter(t=>t.estado==='por_cobrar').sort((a,b)=>a.fecha.localeCompare(b.fecha));
 }
-// Solo cuenta como "dinero disponible" lo verde/amarillo — lo rojo/negro NO cuenta (item 16)
+// Solo cuenta como "dinero disponible" lo verde/amarillo â€” lo rojo/negro NO cuenta (item 16)
 function totalCuentasPorCobrarDisponible(){
   return round2(cuentasPorCobrarAbiertas().filter(t=>{
     const s = semaforoCobro(t); return s==='verde' || s==='amarillo';
@@ -976,7 +976,7 @@ function totalCuentasPorCobrarRiesgo(){
   }).reduce((s,t)=>s+tripSaldoPendiente(t),0));
 }
 
-// ---- Cargueros: dinero en tránsito, NO se mezcla con tus ingresos (item 9-12) ----
+// ---- Cargueros: dinero en trÃ¡nsito, NO se mezcla con tus ingresos (item 9-12) ----
 function carguerosPendientes(){
   return DB.trips.filter(t=>tripCargueroPendiente(t)).sort((a,b)=>a.fecha.localeCompare(b.fecha));
 }
@@ -985,7 +985,7 @@ function totalCarguerosPendientes(){
 }
 function diasSinPagarCarguero(t){ return daysBetween(t.fecha, todayISO()); }
 
-// Ingresos devengados del periodo (flete + servicios − descuento), sin importar si está cobrado
+// Ingresos devengados del periodo (flete + servicios âˆ’ descuento), sin importar si estÃ¡ cobrado
 function periodTripsIngreso(items){
   return items.reduce((s,t)=> s + tripIngresoBruto(t), 0);
 }
@@ -1004,7 +1004,7 @@ function periodUtilidadNetaViajes(items){
 function periodExpensesByGrupo(items, grupo){
   return items.filter(e=>expenseGrupo(e.categoria)===grupo).reduce((s,e)=>s+e.monto,0);
 }
-// COSTO vs EGRESO (item: terminología nueva) — incluye gastos sueltos clasificados
+// COSTO vs EGRESO (item: terminologÃ­a nueva) â€” incluye gastos sueltos clasificados
 function periodExpensesByTipo(items, tipo){
   return round2(items.filter(e=>expenseTipo(e.categoria)===tipo).reduce((s,e)=>s+e.monto,0));
 }
@@ -1018,14 +1018,14 @@ function computeBalances(){
   for (const t of DB.trips){
     if ((t.anticipo||0) > 0) efectivo += t.anticipo; // anticipo se asume recibido en efectivo
     if (t.estado==='cobrado'){
-      // Lo que realmente entra: flete + servicios − anticipo − descuento − % de la compañía (factura)
+      // Lo que realmente entra: flete + servicios âˆ’ anticipo âˆ’ descuento âˆ’ % de la compaÃ±Ã­a (factura)
       const monto = (t.valorFlete||0) + serviciosAdicionalesTotal(t) - (t.anticipo||0) - (t.descuento||0) - costoFacturaTrip(t);
       if (t.metodoRecibo==='Transferencia') banco += monto;
       else efectivo += monto;
     }
     // Costos en ruta: se asumen pagados en efectivo durante el viaje
     efectivo -= costosRutaTotal(t);
-    // Pago al carguero: solo se descuenta cuando ya se marcó como pagado
+    // Pago al carguero: solo se descuenta cuando ya se marcÃ³ como pagado
     if (t.carguero && t.carguero.pagado) efectivo -= cargueroMontoTrip(t);
   }
   for (const e of DB.expenses){
@@ -1039,7 +1039,7 @@ function computeBalances(){
   return { efectivo: round2(efectivo), banco: round2(banco) };
 }
 
-// ---------- Navegación: render principal ----------
+// ---------- NavegaciÃ³n: render principal ----------
 function setView(view, subview){
   STATE.view = view;
   STATE.subview = subview || null;
@@ -1144,7 +1144,7 @@ function pinBruteSuccess(){
   pinBruteSave();
 }
 let pinFirstEntry = '';
-let pinBusy = false; // evita que toques rápidos se pierdan durante la transición create→confirm
+let pinBusy = false; // evita que toques rÃ¡pidos se pierdan durante la transiciÃ³n createâ†’confirm
 let pinBuffer = '';
 let pinMode = 'unlock'; // 'unlock' | 'change-current' | 'create' | 'confirm' | 'remove'
 let pinUnlocked = false;
@@ -1175,10 +1175,10 @@ function pinPromptText(){
 
 function renderPinPad(){
   const pad = document.getElementById('pinPad');
-  const keys = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
+  const keys = ['1','2','3','4','5','6','7','8','9','','0','âŒ«'];
   pad.innerHTML = keys.map(k=>{
     if (k==='') return '<span></span>';
-    if (k==='⌫') return `<button data-action="pin-back">⌫</button>`;
+    if (k==='âŒ«') return `<button data-action="pin-back">âŒ«</button>`;
     return `<button data-action="pin-digit" data-digit="${k}">${k}</button>`;
   }).join('');
   const hint = document.getElementById('pinHint');
@@ -1300,14 +1300,14 @@ function openModal(title, bodyHtml, footHtml){
       <div class="modal-sheet">
         <div class="modal-head">
           <h3>${title}</h3>
-          <button class="modal-close" data-action="close-modal">✕</button>
+          <button class="modal-close" data-action="close-modal">âœ•</button>
         </div>
         <div class="modal-body">${bodyHtml}</div>
         ${footHtml? `<div class="modal-foot">${footHtml}</div>` : ''}
       </div>
     </div>`;
   // Cerrar solo si el clic fue exactamente sobre el fondo (overlay), nunca si
-  // burbujea desde algo dentro de la hoja (eso rompería los botones del formulario).
+  // burbujea desde algo dentro de la hoja (eso romperÃ­a los botones del formulario).
   document.getElementById('modalOverlay').addEventListener('click', function(ev){
     if (ev.target === this) closeModal();
   });
@@ -1317,7 +1317,7 @@ function closeModal(){
 }
 
 /* ============================================================
-   COMPONENTE: MEDIDOR DE COMBUSTIBLE (aguja arrastrable, sin odómetro)
+   COMPONENTE: MEDIDOR DE COMBUSTIBLE (aguja arrastrable, sin odÃ³metro)
    ============================================================ */
 function fuelGaugeHtml(id, label){
   return `
@@ -1330,11 +1330,11 @@ function fuelGaugeHtml(id, label){
       <line class="fg-needle" x1="100" y1="100" x2="100" y2="22" stroke="var(--yellow)" stroke-width="4" stroke-linecap="round"/>
     </svg>
     <div class="fg-title">${label}</div>
-    <div class="fg-label">—</div>
+    <div class="fg-label">â€”</div>
   </div>`;
 }
 // Engancha el arrastre (mouse y touch) de un medidor ya pintado en el DOM.
-// Devuelve la función setValue por si se necesita fijar el valor desde fuera.
+// Devuelve la funciÃ³n setValue por si se necesita fijar el valor desde fuera.
 function wireFuelGauge(containerId, initial, onChange){
   const wrap = document.getElementById(containerId);
   if (!wrap) return null;
@@ -1388,12 +1388,12 @@ function wireFuelGauge(containerId, initial, onChange){
    ============================================================ */
 let tripFormServicios = [];
 function serviciosListHtml(){
-  if (!tripFormServicios.length) return `<div class="field-hint" style="margin-bottom:8px;">Sin servicios adicionales — toca "+ Agregar" si cobraste algo extra (ej. cajas, cartón).</div>`;
+  if (!tripFormServicios.length) return `<div class="field-hint" style="margin-bottom:8px;">Sin servicios adicionales â€” toca "+ Agregar" si cobraste algo extra (ej. cajas, cartÃ³n).</div>`;
   return `<div id="tServiciosRows">` + tripFormServicios.map((s,i)=>`
     <div class="field-row" style="align-items:flex-end;">
       <div class="field" style="flex:2;"><label>${i===0?'Servicio':''}</label><input type="text" class="tServNombre" data-idx="${i}" placeholder="ej. Cajas" value="${esc(s.nombre||'')}"></div>
       <div class="field" style="flex:1;"><label>${i===0?'Valor':''}</label><input type="number" inputmode="decimal" class="tServValor" data-idx="${i}" placeholder="0.00" value="${s.valor||''}"></div>
-      <button type="button" class="btn btn-ghost btn-sm" data-action="trip-serv-remove" data-idx="${i}" style="margin-bottom:12px;">✕</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-action="trip-serv-remove" data-idx="${i}" style="margin-bottom:12px;">âœ•</button>
     </div>`).join('') + `</div>`;
 }
 function wireServiciosList(){
@@ -1425,7 +1425,7 @@ function tripFormHtml(t){
             kmInicial:'', kmFinal:'', nota:'', fecha:todayISO()};
   tripFormServicios = (t.serviciosAdicionales||[]).map(s=>({nombre:s.nombre||'', valor:s.valor!=null?s.valor:''}));
   const cargoOpts = DB.categories.cargoType.map(c=>`<option ${c===t.tipoCarga?'selected':''}>${esc(c)}</option>`).join('');
-  const origenOpts = `<option value="">— Selecciona —</option>` + DB.categories.origenViaje.map(o=>`<option ${o===t.origenViaje?'selected':''}>${esc(o)}</option>`).join('');
+  const origenOpts = `<option value="">â€” Selecciona â€”</option>` + DB.categories.origenViaje.map(o=>`<option ${o===t.origenViaje?'selected':''}>${esc(o)}</option>`).join('');
   const tieneCarguero = !!(t.carguero && t.carguero.nombre);
   const cargueroPagado = !!(t.carguero && t.carguero.pagado);
   const carguerosPrevios = [...new Set(DB.trips.filter(x=>x.carguero&&x.carguero.nombre).map(x=>x.carguero.nombre))];
@@ -1433,7 +1433,7 @@ function tripFormHtml(t){
   const cb = t.combustible||{};
   return `
     <input type="hidden" id="tripId" value="${t.id||''}">
-    ${t.id?`<button type="button" class="btn btn-danger btn-sm" data-action="delete-trip" data-id="${t.id}" style="margin-bottom:12px;">🗑 Eliminar viaje</button>`:''}
+    ${t.id?`<button type="button" class="btn btn-danger btn-sm" data-action="delete-trip" data-id="${t.id}" style="margin-bottom:12px;">ðŸ—‘ Eliminar viaje</button>`:''}
     <div class="field"><label>Fecha</label><input type="date" id="tFecha" value="${t.fecha}"></div>
     <div class="field-row">
       <div class="field"><label>Tipo de carga</label><select id="tTipo">${cargoOpts}</select></div>
@@ -1441,7 +1441,7 @@ function tripFormHtml(t){
     </div>
     <div class="field-row">
       <div class="field"><label>Productor</label><input type="text" id="tProductor" placeholder="Nombre" value="${esc(t.productorNombre||'')}" list="productorList"></div>
-      <div class="field"><label>Teléfono</label><input type="tel" id="tTelefono" placeholder="09xxxxxxxx" value="${esc(t.productorTelefono||'')}"></div>
+      <div class="field"><label>TelÃ©fono</label><input type="tel" id="tTelefono" placeholder="09xxxxxxxx" value="${esc(t.productorTelefono||'')}"></div>
     </div>
     <datalist id="productorList">${DB.producers.map(p=>`<option value="${esc(p.nombre)}">`).join('')}</datalist>
     <div class="field"><label>Ruta / Fincas</label><textarea id="tRuta" placeholder="Finca 1 Tenguel, Finca 2 El Guabo">${esc(t.ruta||'')}</textarea></div>
@@ -1456,14 +1456,14 @@ function tripFormHtml(t){
     <div id="tServiciosList">${serviciosListHtml()}</div>
     <button type="button" class="btn btn-ghost btn-sm" data-action="trip-serv-add" style="margin-bottom:10px;">+ Agregar servicio</button>
 
-    <div class="field"><label>¿Requiere factura?</label>
+    <div class="field"><label>Â¿Requiere factura?</label>
       <div class="seg" id="tFacturaSeg">
         <button type="button" class="${!t.requiereFactura?'active':''}" data-val="no">No</button>
-        <button type="button" class="${t.requiereFactura?'active':''}" data-val="si">Sí</button>
+        <button type="button" class="${t.requiereFactura?'active':''}" data-val="si">SÃ­</button>
       </div>
     </div>
     <div class="field ${t.requiereFactura?'':'hidden'}" id="tFacturaPctWrap">
-      <label>% que cobra la compañía</label>
+      <label>% que cobra la compaÃ±Ã­a</label>
       <input type="number" inputmode="decimal" id="tFacturaPct" placeholder="ej. 10" value="${t.facturaPct||''}">
     </div>
 
@@ -1473,18 +1473,18 @@ function tripFormHtml(t){
         <button type="button" class="${t.estado==='cobrado'?'active':''}" data-val="cobrado">Cobrado</button>
       </div>
     </div>
-    <div class="field ${t.estado==='cobrado'?'':'hidden'}" id="tMetodoWrap"><label>Método de recibo</label>
+    <div class="field ${t.estado==='cobrado'?'':'hidden'}" id="tMetodoWrap"><label>MÃ©todo de recibo</label>
       <div class="seg" id="tMetodoSeg">
         <button type="button" class="${t.metodoRecibo==='Efectivo'?'active':''}" data-val="Efectivo">Efectivo</button>
         <button type="button" class="${t.metodoRecibo==='Transferencia'?'active':''}" data-val="Transferencia">Transferencia</button>
       </div>
     </div>
 
-    <div class="section-label">Carguero (si no manejaste tú el viaje)</div>
-    <div class="field"><label>¿Viaje con carguero?</label>
+    <div class="section-label">Carguero (si no manejaste tÃº el viaje)</div>
+    <div class="field"><label>Â¿Viaje con carguero?</label>
       <div class="seg" id="tCargueroSeg">
         <button type="button" class="${!tieneCarguero?'active':''}" data-val="no">No</button>
-        <button type="button" class="${tieneCarguero?'active':''}" data-val="si">Sí</button>
+        <button type="button" class="${tieneCarguero?'active':''}" data-val="si">SÃ­</button>
       </div>
     </div>
     <div id="tCargueroWrap" class="${tieneCarguero?'':'hidden'}">
@@ -1495,15 +1495,15 @@ function tripFormHtml(t){
       <datalist id="cargueroList">${carguerosPrevios.map(n=>`<option value="${n}">`).join('')}</datalist>
       <div class="field"><label>Estado del pago al carguero</label>
         <div class="seg" id="tCargueroPagadoSeg">
-          <button type="button" class="${!cargueroPagado?'active':''}" data-val="no">🟡 Pendiente</button>
-          <button type="button" class="${cargueroPagado?'active':''}" data-val="si">✅ Pagado</button>
+          <button type="button" class="${!cargueroPagado?'active':''}" data-val="no">ðŸŸ¡ Pendiente</button>
+          <button type="button" class="${cargueroPagado?'active':''}" data-val="si">âœ… Pagado</button>
         </div>
       </div>
     </div>
 
     <div class="section-label">Costos en ruta</div>
     <div class="field-row">
-      <div class="field"><label>Diésel</label><input type="number" inputmode="decimal" id="tCostoDiesel" placeholder="0.00" value="${cr.diesel||''}"></div>
+      <div class="field"><label>DiÃ©sel</label><input type="number" inputmode="decimal" id="tCostoDiesel" placeholder="0.00" value="${cr.diesel||''}"></div>
       <div class="field"><label>Peaje</label><input type="number" inputmode="decimal" id="tCostoPeaje" placeholder="0.00" value="${cr.peaje||''}"></div>
     </div>
     <div class="field-row">
@@ -1518,8 +1518,8 @@ function tripFormHtml(t){
     </div>
 
     <div class="field-row">
-      <div class="field"><label>Km inicial (odómetro)</label><input type="number" id="tKmIni" placeholder="opcional" value="${t.kmInicial!=null?t.kmInicial:''}"></div>
-      <div class="field"><label>Km final (odómetro)</label><input type="number" id="tKmFin" placeholder="opcional" value="${t.kmFinal!=null?t.kmFinal:''}"></div>
+      <div class="field"><label>Km inicial (odÃ³metro)</label><input type="number" id="tKmIni" placeholder="opcional" value="${t.kmInicial!=null?t.kmInicial:''}"></div>
+      <div class="field"><label>Km final (odÃ³metro)</label><input type="number" id="tKmFin" placeholder="opcional" value="${t.kmFinal!=null?t.kmFinal:''}"></div>
     </div>
     <div class="field"><label>Nota</label><input type="text" id="tNota" placeholder="opcional" value="${esc(t.nota||'')}"></div>
 
@@ -1681,7 +1681,7 @@ function saveTripFromForm(){
   saveDB(); closeModal(); showToast(id?'Viaje actualizado':'Viaje registrado'); render();
 }
 function confirmDeleteTrip(id){
-  openModal('¿Eliminar viaje?', `<p style="color:var(--text-dim);font-size:13.5px;">Esta acción no se puede deshacer.</p>`,
+  openModal('Â¿Eliminar viaje?', `<p style="color:var(--text-dim);font-size:13.5px;">Esta acciÃ³n no se puede deshacer.</p>`,
     `<button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
      <button class="btn btn-danger" data-action="do-delete-trip" data-id="${id}">Eliminar</button>`);
 }
@@ -1689,7 +1689,7 @@ function deleteTrip(id){
   markPendingDelete('trips', id);
   DB.trips = DB.trips.filter(t=>t.id!==id); saveDB(); closeModal(); showToast('Viaje eliminado'); render();
 }
-// Marca/desmarca el pago al carguero de un viaje directamente (usado desde el módulo Cargueros)
+// Marca/desmarca el pago al carguero de un viaje directamente (usado desde el mÃ³dulo Cargueros)
 function toggleCargueroPagado(tripId){
   const t = DB.trips.find(x=>x.id===tripId);
   if (!t || !t.carguero) return;
@@ -1704,21 +1704,21 @@ function renderViajes(){
   const ingresoTotal = periodTripsIngreso(trips);
   let listHtml = '';
   if (trips.length===0){
-    listHtml = `<div class="empty"><b>Sin viajes este periodo</b>Toca el botón + para registrar el primero.</div>`;
+    listHtml = `<div class="empty"><b>Sin viajes este periodo</b>Toca el botÃ³n + para registrar el primero.</div>`;
   } else {
     listHtml = `<div class="list">` + trips.map(t=>{
       const saldo = tripSaldoPendiente(t);
       const isPorCobrar = t.estado==='por_cobrar';
       const util = tripUtilidadNeta(t);
       const badges = [];
-      if (tripTieneCarguero(t)) badges.push(`<span class="mini-badge ${t.carguero.pagado?'pagado':'pendiente'}">🚚 ${t.carguero.pagado?'Carguero pagado':'Carguero pendiente'}</span>`);
-      if (t.requiereFactura) badges.push(`<span class="mini-badge info">🧾 Factura ${t.facturaPct||0}%</span>`);
+      if (tripTieneCarguero(t)) badges.push(`<span class="mini-badge ${t.carguero.pagado?'pagado':'pendiente'}">ðŸšš ${t.carguero.pagado?'Carguero pagado':'Carguero pendiente'}</span>`);
+      if (t.requiereFactura) badges.push(`<span class="mini-badge info">ðŸ§¾ Factura ${t.facturaPct||0}%</span>`);
       return `
       <div class="ticket" data-action="edit-trip" data-id="${t.id}">
         <div class="ticket-main">
-          <div class="t-date">${fmtDateShort(t.fecha)} · ${esc(t.tipoCarga)}</div>
+          <div class="t-date">${fmtDateShort(t.fecha)} Â· ${esc(t.tipoCarga)}</div>
           <div class="t-title">${esc(t.productorNombre || 'Sin productor')}</div>
-          <div class="t-meta">${esc(t.ruta || '—')}</div>
+          <div class="t-meta">${esc(t.ruta || 'â€”')}</div>
           ${t.anticipo>0?`<div class="t-meta">Anticipo: ${fmtMoney(t.anticipo)}</div>`:''}
           ${badges.length?`<div style="margin-top:5px;display:flex;gap:5px;flex-wrap:wrap;">${badges.join('')}</div>`:''}
         </div>
@@ -1754,7 +1754,7 @@ function expenseDetailFieldsHtml(categoria, detalle){
   switch(categoria){
     case 'Combustible':
       return `
-        <div class="field"><label>Gasolinera</label><input type="text" id="eDetGasolinera" list="gasStationList" value="${esc(detalle.gasolinera||'')}" placeholder="Nombre de la estación"></div>
+        <div class="field"><label>Gasolinera</label><input type="text" id="eDetGasolinera" list="gasStationList" value="${esc(detalle.gasolinera||'')}" placeholder="Nombre de la estaciÃ³n"></div>
         <datalist id="gasStationList">${DB.categories.gasStation.map(g=>`<option value="${esc(g)}">`).join('')}</datalist>
         <div class="field"><label>Galones (para rendimiento)</label><input type="number" inputmode="decimal" id="eGalones" value="${detalle.galones||''}" placeholder="opcional"></div>`;
     case 'Peajes':
@@ -1764,7 +1764,7 @@ function expenseDetailFieldsHtml(categoria, detalle){
     case 'Mantenimiento y Repuestos':
       return `
         <div class="field"><label>Zona afectada</label><select id="eDetZonaMant">${DB.categories.maintenanceZone.map(z=>`<option ${z===detalle.zona?'selected':''}>${esc(z)}</option>`).join('')}</select></div>
-        <div class="field"><label>Descripción técnica</label><textarea id="eDetDescTecnica" placeholder="ej. Cambio de rodamiento trasero derecho">${esc(detalle.descripcionTecnica||'')}</textarea></div>`;
+        <div class="field"><label>DescripciÃ³n tÃ©cnica</label><textarea id="eDetDescTecnica" placeholder="ej. Cambio de rodamiento trasero derecho">${esc(detalle.descripcionTecnica||'')}</textarea></div>`;
     case 'Legales y Fijos':
       return `<div class="field"><label>Tipo</label><select id="eDetTipoLegal">${DB.categories.legalType.map(z=>`<option ${z===detalle.tipo?'selected':''}>${esc(z)}</option>`).join('')}</select></div>`;
     case 'Comida y Suministros':
@@ -1773,13 +1773,13 @@ function expenseDetailFieldsHtml(categoria, detalle){
         <datalist id="estList">${DB.categories.establishment.map(g=>`<option value="${esc(g)}">`).join('')}</datalist>
         <div class="field"><label>Tipo de gasto</label>
           <div class="seg" id="eTipoComidaSeg">
-            <button type="button" class="${(detalle.tipo||'Básico/Esencial')==='Básico/Esencial'?'active':''}" data-val="Básico/Esencial">Básico</button>
+            <button type="button" class="${(detalle.tipo||'BÃ¡sico/Esencial')==='BÃ¡sico/Esencial'?'active':''}" data-val="BÃ¡sico/Esencial">BÃ¡sico</button>
             <button type="button" class="${detalle.tipo==='Extra/Antojo'?'active':''}" data-val="Extra/Antojo">Extra</button>
           </div>
         </div>`;
-    case 'Guardianía/Parqueadero':
-    case 'Accesorios de Sujeción':
-    case 'Préstamos y Deudas':
+    case 'GuardianÃ­a/Parqueadero':
+    case 'Accesorios de SujeciÃ³n':
+    case 'PrÃ©stamos y Deudas':
     case 'Arriendo':
     case 'Gastos Personales':
     case 'Comisiones Bancarias':
@@ -1791,15 +1791,15 @@ function expenseFormHtml(e){
   e = e || {fecha:todayISO(), categoria:DB.categories.expenseCategory[0].nombre, monto:'', metodoPago:'Efectivo', nota:'', detalle:{}};
   return `
     <input type="hidden" id="expId" value="${e.id||''}">
-    ${e.id?`<button type="button" class="btn btn-danger btn-sm" data-action="delete-expense" data-id="${e.id}" style="margin-bottom:12px;">🗑 Eliminar gasto</button>`:''}
+    ${e.id?`<button type="button" class="btn btn-danger btn-sm" data-action="delete-expense" data-id="${e.id}" style="margin-bottom:12px;">ðŸ—‘ Eliminar gasto</button>`:''}
     <div class="field"><label>Fecha</label><input type="date" id="eFecha" value="${e.fecha}"></div>
-    <div class="field"><label>Categoría</label><select id="eCategoria">${expenseCategoryOptionsHtml(e.categoria)}</select></div>
+    <div class="field"><label>CategorÃ­a</label><select id="eCategoria">${expenseCategoryOptionsHtml(e.categoria)}</select></div>
     <div class="cactus-add">
-      <input type="text" id="eCactusNueva" placeholder="¿No está en la lista? Escribe una nueva categoría">
-      <button type="button" class="btn btn-secondary btn-sm" data-action="cactus-add-category">Añadir</button>
+      <input type="text" id="eCactusNueva" placeholder="Â¿No estÃ¡ en la lista? Escribe una nueva categorÃ­a">
+      <button type="button" class="btn btn-secondary btn-sm" data-action="cactus-add-category">AÃ±adir</button>
     </div>
     <div class="field"><label>Monto</label><input type="number" inputmode="decimal" id="eMonto" placeholder="0.00" value="${e.monto}"></div>
-    <div class="field"><label>Método de pago</label><select id="eMetodo">${payMethodOptionsHtml(e.metodoPago)}</select></div>
+    <div class="field"><label>MÃ©todo de pago</label><select id="eMetodo">${payMethodOptionsHtml(e.metodoPago)}</select></div>
     <div id="eDetalleFields">${expenseDetailFieldsHtml(e.categoria, e.detalle)}</div>
     <div class="field"><label>Nota</label><input type="text" id="eNota" placeholder="opcional" value="${esc(e.nota||'')}"></div>
   `;
@@ -1836,7 +1836,7 @@ function cactusAddCategory(){
   document.getElementById('eDetalleFields').innerHTML = expenseDetailFieldsHtml(val, {});
   wireExpenseSegments();
   input.value = '';
-  showToast('Categoría "'+val+'" añadida');
+  showToast('CategorÃ­a "'+val+'" aÃ±adida');
 }
 function readExpenseDetalle(categoria){
   const d = {};
@@ -1860,7 +1860,7 @@ function readExpenseDetalle(categoria){
       d.establecimiento = (document.getElementById('eDetEstablecimiento')||{}).value || '';
       if (d.establecimiento) addCactusCategory('establishment', d.establecimiento);
       const seg = document.getElementById('eTipoComidaSeg');
-      d.tipo = seg ? (seg.querySelector('button.active')||{}).dataset.val : 'Básico/Esencial';
+      d.tipo = seg ? (seg.querySelector('button.active')||{}).dataset.val : 'BÃ¡sico/Esencial';
       break;
   }
   return d;
@@ -1892,7 +1892,7 @@ function saveExpenseFromForm(){
   saveDB(); closeModal(); showToast(id?'Gasto actualizado':'Gasto registrado'); render();
 }
 function confirmDeleteExpense(id){
-  openModal('¿Eliminar gasto?', `<p style="color:var(--text-dim);font-size:13.5px;">Esta acción no se puede deshacer.</p>`,
+  openModal('Â¿Eliminar gasto?', `<p style="color:var(--text-dim);font-size:13.5px;">Esta acciÃ³n no se puede deshacer.</p>`,
     `<button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
      <button class="btn btn-danger" data-action="do-delete-expense" data-id="${id}">Eliminar</button>`);
 }
@@ -1904,10 +1904,10 @@ function deleteExpense(id){
 function expenseSubtitle(e){
   const d = e.detalle||{};
   if (e.categoria==='Combustible') return d.gasolinera || 'Combustible';
-  if (e.categoria==='Peajes') return [d.zona,d.ruta].filter(Boolean).join(' · ');
-  if (e.categoria==='Mantenimiento y Repuestos') return [d.zona,d.descripcionTecnica].filter(Boolean).join(' · ');
+  if (e.categoria==='Peajes') return [d.zona,d.ruta].filter(Boolean).join(' Â· ');
+  if (e.categoria==='Mantenimiento y Repuestos') return [d.zona,d.descripcionTecnica].filter(Boolean).join(' Â· ');
   if (e.categoria==='Legales y Fijos') return d.tipo || '';
-  if (e.categoria==='Comida y Suministros') return [d.establecimiento,d.tipo].filter(Boolean).join(' · ');
+  if (e.categoria==='Comida y Suministros') return [d.establecimiento,d.tipo].filter(Boolean).join(' Â· ');
   return e.nota || '';
 }
 
@@ -1919,7 +1919,7 @@ function renderGastos(){
   const egresos = periodExpensesByTipo(expenses,'egreso');
   let listHtml = '';
   if (expenses.length===0){
-    listHtml = `<div class="empty"><b>Sin gastos este periodo</b>Toca el botón + para registrar el primero.</div>`;
+    listHtml = `<div class="empty"><b>Sin gastos este periodo</b>Toca el botÃ³n + para registrar el primero.</div>`;
   } else {
     listHtml = `<div class="list">` + expenses.map(e=>{
       const grupo = expenseGrupo(e.categoria);
@@ -1928,7 +1928,7 @@ function renderGastos(){
       <div class="row" data-action="edit-expense" data-id="${e.id}">
         <div class="r-main">
           <div class="r-title">${esc(e.categoria)} <span class="mini-badge ${tipo==='costo'?'pagado':'info'}" style="margin-left:4px;">${tipo==='costo'?'COSTO':'EGRESO'}</span></div>
-          <div class="r-sub">${esc(expenseSubtitle(e)) || e.metodoPago} · ${fmtDateShort(e.fecha)} · ${grupo==='camion'?'🚚 Camión':'🏠 Personal'}</div>
+          <div class="r-sub">${esc(expenseSubtitle(e)) || e.metodoPago} Â· ${fmtDateShort(e.fecha)} Â· ${grupo==='camion'?'ðŸšš CamiÃ³n':'ðŸ  Personal'}</div>
         </div>
         <div class="r-val neg">-${fmtMoney(e.monto)}</div>
       </div>`;
@@ -1938,10 +1938,10 @@ function renderGastos(){
     <div class="stat-grid">
       <div class="stat-card"><div class="lbl">Costos</div><div class="val neg">-${fmtMoney(costos)}</div><div class="sub">Ligados a generar ingreso</div></div>
       <div class="stat-card"><div class="lbl">Egresos</div><div class="val neg">-${fmtMoney(egresos)}</div><div class="sub">No generan ingreso directo</div></div>
-      <div class="stat-card"><div class="lbl">Camión</div><div class="val neg">-${fmtMoney(camion)}</div></div>
+      <div class="stat-card"><div class="lbl">CamiÃ³n</div><div class="val neg">-${fmtMoney(camion)}</div></div>
       <div class="stat-card"><div class="lbl">Casa / Personal</div><div class="val neg">-${fmtMoney(personal)}</div></div>
     </div>
-    <div class="field-hint" style="margin-top:-6px;">Estos son gastos sueltos. Los costos en ruta de cada viaje (diésel, peaje, comida, carguero) se registran dentro del viaje.</div>
+    <div class="field-hint" style="margin-top:-6px;">Estos son gastos sueltos. Los costos en ruta de cada viaje (diÃ©sel, peaje, comida, carguero) se registran dentro del viaje.</div>
     <div class="view-title">Gastos del periodo<span class="mono">-${fmtMoney(camion+personal)}</span></div>
     ${listHtml}
     <button class="fab" data-action="new-expense" aria-label="Nuevo gasto">+</button>
@@ -1951,57 +1951,78 @@ function renderGastos(){
 /* ============================================================
    CAJA (EFECTIVO / BANCO) Y TRASPASOS
    ============================================================ */
-function transferFormHtml(){
+function transferFormHtml(t){
+  t = t || { fecha:todayISO(), direccion:'efectivo_a_banco', monto:'', nota:'' };
+  const isToBanco = t.direccion !== 'banco_a_efectivo';
   return `
-    <div class="field"><label>Fecha</label><input type="date" id="trFecha" value="${todayISO()}"></div>
-    <div class="field"><label>Dirección</label>
+    ${t.id?`<input type="hidden" id="trId" value="${t.id}">`:''}
+    ${t.id?`<button type="button" class="btn btn-danger btn-sm" data-action="delete-transfer" data-id="${t.id}" style="margin-bottom:12px;">Eliminar traspaso</button>`:''}
+    <div class="field"><label>Fecha</label><input type="date" id="trFecha" value="${t.fecha || todayISO()}"></div>
+    <div class="field"><label>Direccion</label>
       <div class="seg" id="trDirSeg">
-        <button type="button" class="active" data-val="efectivo_a_banco">Efectivo → Banco</button>
-        <button type="button" data-val="banco_a_efectivo">Banco → Efectivo</button>
+        <button type="button" class="${isToBanco?'active':''}" data-val="efectivo_a_banco">Efectivo a Banco</button>
+        <button type="button" class="${!isToBanco?'active':''}" data-val="banco_a_efectivo">Banco a Efectivo</button>
       </div>
     </div>
-    <div class="field"><label>Monto</label><input type="number" inputmode="decimal" id="trMonto" placeholder="0.00"></div>
-    <div class="field"><label>Nota</label><input type="text" id="trNota" placeholder="opcional"></div>
+    <div class="field"><label>Monto</label><input type="number" inputmode="decimal" id="trMonto" value="${t.monto||''}" placeholder="0.00"></div>
+    <div class="field"><label>Nota</label><input type="text" id="trNota" value="${esc(t.nota||'')}" placeholder="opcional"></div>
   `;
 }
-function openTransferForm(){
-  openModal('Traspaso de efectivo', transferFormHtml(),
+function openTransferForm(id){
+  const t = id ? DB.transfers.find(x=>x.id===id) : null;
+  openModal(id?'Editar traspaso':'Traspaso de efectivo', transferFormHtml(t),
     `<button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
-     <button class="btn btn-primary" data-action="save-transfer">Registrar traspaso</button>`);
+     <button class="btn btn-primary" data-action="save-transfer">${id?'Guardar cambios':'Registrar traspaso'}</button>`);
   document.getElementById('trDirSeg').querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=>{
     document.getElementById('trDirSeg').querySelectorAll('button').forEach(x=>x.classList.remove('active'));
     b.classList.add('active');
   }));
 }
 function saveTransferFromForm(){
+  const idEl = document.getElementById('trId');
+  const id = idEl ? idEl.value : null;
   const monto = Number(document.getElementById('trMonto').value)||0;
   if (monto<=0){ showToast('Ingresa el monto'); return; }
   const direccion = document.querySelector('#trDirSeg button.active').dataset.val;
   const fecha = document.getElementById('trFecha').value || todayISO();
-  DB.transfers.push({
-    id:uuid(), fecha, monto, direccion,
-    nota: document.getElementById('trNota').value.trim(),
-    createdAt: nowISO(), updatedAt: nowISO()
-  });
-  saveDB(); closeModal(); showToast('Traspaso registrado'); render();
+  const data = { fecha, monto, direccion, nota: document.getElementById('trNota').value.trim() };
+  if (id){
+    const t = DB.transfers.find(x=>x.id===id);
+    if (!t) return;
+    Object.assign(t, data);
+    t.updatedAt = nowISO();
+  } else {
+    DB.transfers.push({ id:uuid(), ...data, createdAt: nowISO(), updatedAt: nowISO() });
+  }
+  saveDB(); closeModal(); showToast(id?'Traspaso actualizado':'Traspaso registrado'); render();
 }
-
+function confirmDeleteTransfer(id){
+  openModal('Eliminar traspaso', `<p>Seguro que quieres eliminar este traspaso? El efectivo/banco se recalculara automaticamente.</p>`,
+     `<button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+     <button class="btn btn-danger" data-action="do-delete-transfer" data-id="${id}">Eliminar</button>`);
+}
+function deleteTransfer(id){
+  markPendingDelete('transfers', id);
+  DB.transfers = DB.transfers.filter(t=>t.id!==id);
+  saveDB(); closeModal(); showToast('Traspaso eliminado'); render();
+}
 function renderCaja(){
   const bal = computeBalances();
   const recientes = [...DB.transfers].sort((a,b)=>b.fecha.localeCompare(a.fecha)).slice(0,12);
   const comisionesPeriodo = DB.expenses.filter(e=>inPeriod(e) && e.categoria==='Comisiones Bancarias').reduce((s,e)=>s+e.monto,0);
   let listHtml = '';
   if (recientes.length===0){
-    listHtml = `<div class="empty"><b>Sin traspasos registrados</b>Usa el botón + para mover dinero entre efectivo y banco.</div>`;
+    listHtml = `<div class="empty"><b>Sin traspasos registrados</b>Usa el botÃ³n + para mover dinero entre efectivo y banco.</div>`;
   } else {
     listHtml = `<div class="list">` + recientes.map(t=>{
       const isToBanco = t.direccion==='efectivo_a_banco';
       return `<div class="row">
         <div class="r-main">
-          <div class="r-title">${isToBanco?'Efectivo → Banco':'Banco → Efectivo'}</div>
-          <div class="r-sub">${fmtDateShort(t.fecha)}${t.nota?(' · '+esc(t.nota)):''}</div>
+          <div class="r-title">${isToBanco?'Efectivo â†’ Banco':'Banco â†’ Efectivo'}</div>
+          <div class="r-sub">${fmtDateShort(t.fecha)}${t.nota?(' Â· '+esc(t.nota)):''}</div>
         </div>
         <div class="r-val mono">${fmtMoney(t.monto)}</div>
+        <button class="btn btn-ghost btn-sm" data-action="edit-transfer" data-id="${t.id}">Editar</button>
       </div>`;
     }).join('') + `</div>`;
   }
@@ -2011,8 +2032,8 @@ function renderCaja(){
       <div class="caja-card banco"><div class="lbl">Banco</div><div class="val">${fmtMoney(bal.banco)}</div></div>
     </div>
     <div class="btn-row">
-      <button class="btn btn-secondary" data-action="new-transfer">↔ Traspaso</button>
-      <button class="btn btn-secondary" data-action="new-comision">Comisión bancaria</button>
+      <button class="btn btn-secondary" data-action="new-transfer">â†” Traspaso</button>
+      <button class="btn btn-secondary" data-action="new-comision">ComisiÃ³n bancaria</button>
     </div>
     <div class="stat-card"><div class="lbl">Comisiones bancarias (periodo)</div><div class="val neg">-${fmtMoney(comisionesPeriodo)}</div></div>
     <div class="view-title">Traspasos recientes</div>
@@ -2039,7 +2060,7 @@ function producerStats(p){
   const saldoPendiente = pendientes.reduce((s,t)=>s+tripSaldoPendiente(t),0);
   const enMora = pendientes.some(t=>daysBetween(t.fecha, todayISO()) > DB.meta.diasMoraAlerta);
   const diasMoraMax = pendientes.length ? Math.max(...pendientes.map(t=>daysBetween(t.fecha, todayISO()))) : 0;
-  // Historial de moroso (item 15): cuántas veces tardó más del plazo, y si hoy está en zona de riesgo
+  // Historial de moroso (item 15): cuÃ¡ntas veces tardÃ³ mÃ¡s del plazo, y si hoy estÃ¡ en zona de riesgo
   const plazo = DB.meta.diasPlazoCobro || 8;
   const vecesTardo = cobrados.filter(t=>daysBetween(t.fecha,t.fechaCobro) > plazo).length;
   const enRiesgo = pendientes.some(t=>{ const sm=semaforoCobro(t); return sm==='rojo'||sm==='negro'; });
@@ -2052,7 +2073,7 @@ function producerFormHtml(p){
   return `
     <input type="hidden" id="prodId" value="${p.id||''}">
     <div class="field"><label>Nombre</label><input type="text" id="prNombre" value="${esc(p.nombre||'')}" placeholder="Nombre del productor"></div>
-    <div class="field"><label>Teléfono</label><input type="tel" id="prTelefono" value="${esc(p.telefono||'')}" placeholder="09xxxxxxxx"></div>
+    <div class="field"><label>TelÃ©fono</label><input type="tel" id="prTelefono" value="${esc(p.telefono||'')}" placeholder="09xxxxxxxx"></div>
     <div class="field"><label>Notas</label><textarea id="prNotas" placeholder="opcional">${esc(p.notas||'')}</textarea></div>
   `;
 }
@@ -2060,7 +2081,7 @@ function openProducerForm(id){
   const p = id ? DB.producers.find(x=>x.id===id) : null;
   openModal(p? 'Editar productor' : 'Nuevo productor', producerFormHtml(p),
     `<button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
-     <button class="btn btn-primary" data-action="save-producer">${p?'Guardar':'Añadir'}</button>`);
+     <button class="btn btn-primary" data-action="save-producer">${p?'Guardar':'AÃ±adir'}</button>`);
 }
 function saveProducerFromForm(){
   const id = document.getElementById('prodId').value;
@@ -2078,7 +2099,7 @@ function saveProducerFromForm(){
   saveDB(); closeModal(); showToast('Productor guardado'); render();
 }
 function confirmDeleteProducer(id){
-  openModal('¿Eliminar productor?', `<p style="color:var(--text-dim);font-size:13.5px;">Los viajes ya registrados se conservan, solo se elimina la ficha del productor.</p>`,
+  openModal('Â¿Eliminar productor?', `<p style="color:var(--text-dim);font-size:13.5px;">Los viajes ya registrados se conservan, solo se elimina la ficha del productor.</p>`,
     `<button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
      <button class="btn btn-danger" data-action="do-delete-producer" data-id="${id}">Eliminar</button>`);
 }
@@ -2092,13 +2113,13 @@ function renderProductores(){
     .sort((a,b)=> (b.s.enMora - a.s.enMora) || a.p.nombre.localeCompare(b.p.nombre));
   let html = '';
   if (list.length===0){
-    html = `<div class="empty"><b>Sin productores</b>Se crean automáticamente al registrar un viaje, o añádelos aquí.</div>`;
+    html = `<div class="empty"><b>Sin productores</b>Se crean automÃ¡ticamente al registrar un viaje, o aÃ±Ã¡delos aquÃ­.</div>`;
   } else {
     html = `<div class="list">` + list.map(({p,s})=>`
       <div class="row" data-action="view-producer" data-id="${p.id}">
         <div class="r-main">
           <div class="r-title">${esc(p.nombre)} ${s.enMora?'<span class="stamp mora" style="font-size:9px;padding:1px 4px;">MORA</span>':''}</div>
-          <div class="r-sub">${s.viajesCount} viaje(s) · Facturado ${fmtMoney(s.totalFacturado)}${s.diasProm!=null?` · ${s.diasProm}d promedio cobro`:''}</div>
+          <div class="r-sub">${s.viajesCount} viaje(s) Â· Facturado ${fmtMoney(s.totalFacturado)}${s.diasProm!=null?` Â· ${s.diasProm}d promedio cobro`:''}</div>
         </div>
         ${s.saldoPendiente>0?`<div class="r-val neg">${fmtMoney(s.saldoPendiente)}</div>`:''}
         ${p.telefono?`<span class="icon-action call" data-action="call" data-phone="${esc(p.telefono)}" title="Llamar">
@@ -2107,7 +2128,7 @@ function renderProductores(){
       </div>`).join('') + `</div>`;
   }
   return `
-    <div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">‹</button><h3>Productores</h3></div>
+    <div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">â€¹</button><h3>Productores</h3></div>
     ${html}
     <button class="fab" data-action="new-producer" aria-label="Nuevo productor">+</button>
   `;
@@ -2119,15 +2140,15 @@ function renderProductorDetalle(id){
   const s = producerStats(p);
   const trips = [...s.trips].sort((a,b)=>b.fecha.localeCompare(a.fecha));
   return `
-    <div class="subview-head"><button class="back-btn" data-action="go-back" data-back="productores">‹</button><h3>${esc(p.nombre)}</h3></div>
-    ${s.enMora?`<div class="alert danger"><span class="a-icon">⚠</span><span>Tiene saldo vencido hace más de ${DB.meta.diasMoraAlerta} días (máx. ${s.diasMoraMax}d). Considera priorizar el cobro.</span></div>`:''}
+    <div class="subview-head"><button class="back-btn" data-action="go-back" data-back="productores">â€¹</button><h3>${esc(p.nombre)}</h3></div>
+    ${s.enMora?`<div class="alert danger"><span class="a-icon">âš </span><span>Tiene saldo vencido hace mÃ¡s de ${DB.meta.diasMoraAlerta} dÃ­as (mÃ¡x. ${s.diasMoraMax}d). Considera priorizar el cobro.</span></div>`:''}
     <div class="stat-grid">
       <div class="stat-card"><div class="lbl">Total Facturado</div><div class="val">${fmtMoney(s.totalFacturado)}</div></div>
       <div class="stat-card"><div class="lbl">Saldo Pendiente</div><div class="val ${s.saldoPendiente>0?'neg':''}">${fmtMoney(s.saldoPendiente)}</div></div>
       <div class="stat-card"><div class="lbl">Viajes</div><div class="val">${s.viajesCount}</div></div>
-      <div class="stat-card"><div class="lbl">Días prom. de cobro</div><div class="val">${s.diasProm!=null?s.diasProm+'d':'—'}</div></div>
-      <div class="stat-card"><div class="lbl">Veces que tardó +${DB.meta.diasPlazoCobro}d</div><div class="val ${s.vecesTardo>0?'neg':''}">${s.vecesTardo} de ${s.cobradosCount}</div></div>
-      <div class="stat-card"><div class="lbl">Estado actual</div><div class="val" style="font-size:13.5px;">${s.enRiesgo?'🔴 En riesgo':(s.saldoPendiente>0?'🟢 Al día':'—')}</div></div>
+      <div class="stat-card"><div class="lbl">DÃ­as prom. de cobro</div><div class="val">${s.diasProm!=null?s.diasProm+'d':'â€”'}</div></div>
+      <div class="stat-card"><div class="lbl">Veces que tardÃ³ +${DB.meta.diasPlazoCobro}d</div><div class="val ${s.vecesTardo>0?'neg':''}">${s.vecesTardo} de ${s.cobradosCount}</div></div>
+      <div class="stat-card"><div class="lbl">Estado actual</div><div class="val" style="font-size:13.5px;">${s.enRiesgo?'ðŸ”´ En riesgo':(s.saldoPendiente>0?'ðŸŸ¢ Al dÃ­a':'â€”')}</div></div>
     </div>
     <div class="btn-row">
       ${p.telefono?`<button class="btn btn-secondary" data-action="call" data-phone="${esc(p.telefono)}">Llamar</button>
@@ -2144,9 +2165,9 @@ function renderProductorDetalle(id){
       const sm = isPorCobrar ? semaforoCobro(t) : null;
       return `<div class="ticket" data-action="edit-trip" data-id="${t.id}">
         <div class="ticket-main">
-          <div class="t-date">${fmtDateShort(t.fecha)} · ${esc(t.tipoCarga)}</div>
-          <div class="t-title">${esc(t.ruta || '—')}</div>
-          ${sm?`<div class="t-meta">${SEMAFORO_INFO[sm].icon} ${SEMAFORO_INFO[sm].label} · ${diasSinPagar(t)}d</div>`:''}
+          <div class="t-date">${fmtDateShort(t.fecha)} Â· ${esc(t.tipoCarga)}</div>
+          <div class="t-title">${esc(t.ruta || 'â€”')}</div>
+          ${sm?`<div class="t-meta">${SEMAFORO_INFO[sm].icon} ${SEMAFORO_INFO[sm].label} Â· ${diasSinPagar(t)}d</div>`:''}
         </div>
         <div class="ticket-side">
           <span class="stamp ${isPorCobrar?'por-cobrar':'cobrado'}">${isPorCobrar?'Por cobrar':'Cobrado'}</span>
@@ -2158,7 +2179,7 @@ function renderProductorDetalle(id){
 }
 
 /* ============================================================
-   CUENTAS POR COBRAR — semáforo automático (item 13-16)
+   CUENTAS POR COBRAR â€” semÃ¡foro automÃ¡tico (item 13-16)
    ============================================================ */
 function renderCuentasPorCobrar(){
   const abiertas = cuentasPorCobrarAbiertas();
@@ -2166,10 +2187,10 @@ function renderCuentasPorCobrar(){
   const riesgo = totalCuentasPorCobrarRiesgo();
   const ordenadas = [...abiertas].sort((a,b)=>diasSinPagar(b)-diasSinPagar(a));
   return `
-    <div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">‹</button><h3>Cuentas por Cobrar</h3></div>
+    <div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">â€¹</button><h3>Cuentas por Cobrar</h3></div>
     <div class="stat-grid">
-      <div class="stat-card"><div class="lbl">🟢🟡 Disponible</div><div class="val pos">${fmtMoney(disponible)}</div><div class="sub">Cuenta para tu plata disponible</div></div>
-      <div class="stat-card"><div class="lbl">🔴⚫ En riesgo</div><div class="val neg">${fmtMoney(riesgo)}</div><div class="sub">No cuenta como disponible</div></div>
+      <div class="stat-card"><div class="lbl">ðŸŸ¢ðŸŸ¡ Disponible</div><div class="val pos">${fmtMoney(disponible)}</div><div class="sub">Cuenta para tu plata disponible</div></div>
+      <div class="stat-card"><div class="lbl">ðŸ”´âš« En riesgo</div><div class="val neg">${fmtMoney(riesgo)}</div><div class="sub">No cuenta como disponible</div></div>
     </div>
     ${ordenadas.length===0?'<div class="empty"><b>Nada pendiente de cobro</b></div>':`<div class="list">` + ordenadas.map(t=>{
       const sm = semaforoCobro(t);
@@ -2178,7 +2199,7 @@ function renderCuentasPorCobrar(){
       return `<div class="row" data-action="edit-trip" data-id="${t.id}">
         <div class="r-main">
           <div class="r-title">${info.icon} ${esc(t.productorNombre||'Sin nombre')}</div>
-          <div class="r-sub">${fmtDateShort(t.fecha)} · ${esc(t.tipoCarga)} · ${info.label} (${dias}d)</div>
+          <div class="r-sub">${fmtDateShort(t.fecha)} Â· ${esc(t.tipoCarga)} Â· ${info.label} (${dias}d)</div>
         </div>
         <div class="r-val neg">${fmtMoney(tripSaldoPendiente(t))}</div>
         ${t.productorTelefono?`<span class="icon-action call" data-action="call" data-phone="${esc(t.productorTelefono)}">
@@ -2190,7 +2211,7 @@ function renderCuentasPorCobrar(){
 }
 
 /* ============================================================
-   CARGUEROS — dinero en tránsito, NO se mezcla con tus ingresos (item 9-12)
+   CARGUEROS â€” dinero en trÃ¡nsito, NO se mezcla con tus ingresos (item 9-12)
    ============================================================ */
 function renderCargueros(){
   const pendientes = carguerosPendientes();
@@ -2200,20 +2221,20 @@ function renderCargueros(){
   const diasAlerta = DB.meta.diasAlertaCarguero || 5;
   const enAlerta = pendientes.filter(t=>diasSinPagarCarguero(t) >= diasAlerta);
   return `
-    <div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">‹</button><h3>Cargueros</h3></div>
+    <div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">â€¹</button><h3>Cargueros</h3></div>
     <div class="hero-card">
-      <div class="hero-label">No es tuyo — dinero en tránsito</div>
+      <div class="hero-label">No es tuyo â€” dinero en trÃ¡nsito</div>
       <div class="hero-value neg">${fmtMoney(totalPendiente)}</div>
       <div class="hero-sub">Pendiente de pagar a cargueros, no se mezcla con tus ingresos</div>
     </div>
-    ${enAlerta.length?`<div class="alert danger"><span class="a-icon">⚠</span><span><b>${enAlerta.length} carguero(s)</b> llevan ${diasAlerta}+ días sin que les pagues.</span></div>`:''}
+    ${enAlerta.length?`<div class="alert danger"><span class="a-icon">âš </span><span><b>${enAlerta.length} carguero(s)</b> llevan ${diasAlerta}+ dÃ­as sin que les pagues.</span></div>`:''}
     <div class="view-title">Pendientes de pago</div>
     ${pendientes.length===0?'<div class="empty"><b>Sin pagos pendientes a cargueros</b></div>':`<div class="list">` + pendientes.map(t=>{
       const dias = diasSinPagarCarguero(t);
       return `<div class="row">
         <div class="r-main" data-action="edit-trip" data-id="${t.id}">
           <div class="r-title">${esc(t.carguero.nombre)} ${dias>=diasAlerta?`<span class="stamp mora" style="font-size:9px;padding:1px 4px;">${dias}d</span>`:''}</div>
-          <div class="r-sub">${fmtDateShort(t.fecha)} · ${esc(t.ruta||t.tipoCarga)}</div>
+          <div class="r-sub">${fmtDateShort(t.fecha)} Â· ${esc(t.ruta||t.tipoCarga)}</div>
         </div>
         <div class="r-val neg">${fmtMoney(cargueroMontoTrip(t))}</div>
         <button class="btn btn-secondary btn-sm" data-action="toggle-carguero-pagado" data-id="${t.id}">Marcar pagado</button>
@@ -2221,7 +2242,7 @@ function renderCargueros(){
     }).join('') + `</div>`}
     ${pagadosRecientes.length?`<div class="view-title">Pagados recientemente</div><div class="list">` + pagadosRecientes.map(t=>`
       <div class="row" style="opacity:.6;">
-        <div class="r-main"><div class="r-title">${esc(t.carguero.nombre)}</div><div class="r-sub">${fmtDateShort(t.carguero.fechaPago||t.fecha)} · ${esc(t.ruta||t.tipoCarga)}</div></div>
+        <div class="r-main"><div class="r-title">${esc(t.carguero.nombre)}</div><div class="r-sub">${fmtDateShort(t.carguero.fechaPago||t.fecha)} Â· ${esc(t.ruta||t.tipoCarga)}</div></div>
         <div class="r-val mono">${fmtMoney(cargueroMontoTrip(t))}</div>
         <button class="btn btn-ghost btn-sm" data-action="toggle-carguero-pagado" data-id="${t.id}">Deshacer</button>
       </div>`).join('') + `</div>` : ''}
@@ -2258,17 +2279,17 @@ function commitmentFormHtml(c, template){
          clasificacion: expenseTipo(template.categoriaGasto)||'egreso'};
   }
   c = c || {nombre:'', tipo:'deuda', montoTotal:'', saldoPendiente:'', monto:'', frecuencia:'mensual',
-            fechaProximoPago:todayISO(), categoriaGasto:'Préstamos y Deudas', plazo:'corto', clasificacion:'egreso'};
+            fechaProximoPago:todayISO(), categoriaGasto:'PrÃ©stamos y Deudas', plazo:'corto', clasificacion:'egreso'};
   return `
     <input type="hidden" id="cmId" value="${c.id||''}">
-    ${c.id?`<button type="button" class="btn btn-danger btn-sm" data-action="delete-commitment" data-id="${c.id}" style="margin-bottom:12px;">🗑 Eliminar compromiso</button>`:''}
+    ${c.id?`<button type="button" class="btn btn-danger btn-sm" data-action="delete-commitment" data-id="${c.id}" style="margin-bottom:12px;">ðŸ—‘ Eliminar compromiso</button>`:''}
     <div class="field"><label>Tipo</label>
       <div class="seg" id="cmTipoSeg">
         <button type="button" class="${c.tipo==='deuda'?'active':''}" data-val="deuda">Deuda (con saldo)</button>
         <button type="button" class="${c.tipo==='fijo'?'active':''}" data-val="fijo">Fijo recurrente</button>
       </div>
     </div>
-    <div class="field"><label>Nombre</label><input type="text" id="cmNombre" value="${esc(c.nombre||'')}" placeholder="ej. Préstamo Banco Pichincha / Arriendo"></div>
+    <div class="field"><label>Nombre</label><input type="text" id="cmNombre" value="${esc(c.nombre||'')}" placeholder="ej. PrÃ©stamo Banco Pichincha / Arriendo"></div>
     <div class="field-row">
       <div class="field"><label>Plazo</label>
         <div class="seg" id="cmPlazoSeg">
@@ -2276,7 +2297,7 @@ function commitmentFormHtml(c, template){
           <button type="button" class="${c.plazo==='largo'?'active':''}" data-val="largo">Largo</button>
         </div>
       </div>
-      <div class="field"><label>Clasificación</label>
+      <div class="field"><label>ClasificaciÃ³n</label>
         <div class="seg" id="cmClasifSeg">
           <button type="button" class="${c.clasificacion!=='costo'?'active':''}" data-val="egreso">EGRESO</button>
           <button type="button" class="${c.clasificacion==='costo'?'active':''}" data-val="costo">COSTO</button>
@@ -2290,10 +2311,10 @@ function commitmentFormHtml(c, template){
       <div class="field"><label>Frecuencia</label>
         <select id="cmFrecuencia"><option value="mensual" ${c.frecuencia==='mensual'?'selected':''}>Mensual</option><option value="semanal" ${c.frecuencia==='semanal'?'selected':''}>Semanal</option></select>
       </div>
-      <div class="field"><label>Próximo pago</label><input type="date" id="cmFecha" value="${c.fechaProximoPago}"></div>
+      <div class="field"><label>PrÃ³ximo pago</label><input type="date" id="cmFecha" value="${c.fechaProximoPago}"></div>
     </div>
-    <div class="field"><label>Categoría de gasto al pagar</label><select id="cmCatGasto">${expenseCategoryOptionsHtml(c.categoriaGasto||'Préstamos y Deudas')}</select></div>
-    <div class="field-hint">Fecha límite flexible: no pasa nada si la pagas otro día — solo registra cuándo toca.</div>
+    <div class="field"><label>CategorÃ­a de gasto al pagar</label><select id="cmCatGasto">${expenseCategoryOptionsHtml(c.categoriaGasto||'PrÃ©stamos y Deudas')}</select></div>
+    <div class="field-hint">Fecha lÃ­mite flexible: no pasa nada si la pagas otro dÃ­a â€” solo registra cuÃ¡ndo toca.</div>
   `;
 }
 function openCommitmentForm(id, template){
@@ -2329,7 +2350,7 @@ function saveCommitmentFromForm(){
     frecuencia: document.getElementById('cmFrecuencia').value,
     fechaProximoPago: document.getElementById('cmFecha').value || todayISO(),
     categoriaGasto,
-    esCuotaCompania: categoriaGasto==='Cuota Compañía',
+    esCuotaCompania: categoriaGasto==='Cuota CompaÃ±Ã­a',
     estado: 'activo',
   };
   if (id){
@@ -2343,7 +2364,7 @@ function saveCommitmentFromForm(){
   saveDB(); closeModal(); showToast('Compromiso guardado'); render();
 }
 function confirmDeleteCommitment(id){
-  openModal('¿Eliminar compromiso?', `<p style="color:var(--text-dim);font-size:13.5px;">Esto no elimina los gastos ya registrados, solo el seguimiento del compromiso.</p>`,
+  openModal('Â¿Eliminar compromiso?', `<p style="color:var(--text-dim);font-size:13.5px;">Esto no elimina los gastos ya registrados, solo el seguimiento del compromiso.</p>`,
     `<button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
      <button class="btn btn-danger" data-action="do-delete-commitment" data-id="${id}">Eliminar</button>`);
 }
@@ -2359,11 +2380,11 @@ function openPayCommitmentForm(id){
     <input type="hidden" id="pcId" value="${c.id}">
     <div class="field"><label>Fecha de pago</label><input type="date" id="pcFecha" value="${todayISO()}"></div>
     <div class="field"><label>Monto a pagar</label><input type="number" inputmode="decimal" id="pcMonto" value="${c.monto||c.saldoPendiente||''}"></div>
-    <div class="field"><label>Método de pago</label><select id="pcMetodo">${payMethodOptionsHtml('Efectivo')}</select></div>
+    <div class="field"><label>MÃ©todo de pago</label><select id="pcMetodo">${payMethodOptionsHtml('Efectivo')}</select></div>
     ${c.tipo==='deuda'?`<div class="computed-line"><span>Saldo actual</span><b>${fmtMoney(c.saldoPendiente)}</b></div>`:''}
-    ${c.monto?`<div class="field-hint" style="margin:6px 0 4px;">Monto normal: ${fmtMoney(c.monto)}. Si pagas más (ej. recargo por mora), el excedente se registra como pérdida.</div>
-    <div class="field"><label>Causa, si pagaste de más (opcional)</label><select id="pcCausa">
-      <option value="">— No aplica —</option>
+    ${c.monto?`<div class="field-hint" style="margin:6px 0 4px;">Monto normal: ${fmtMoney(c.monto)}. Si pagas mÃ¡s (ej. recargo por mora), el excedente se registra como pÃ©rdida.</div>
+    <div class="field"><label>Causa, si pagaste de mÃ¡s (opcional)</label><select id="pcCausa">
+      <option value="">â€” No aplica â€”</option>
       ${DB.categories.causaMora.map(x=>`<option>${x}</option>`).join('')}
     </select></div>`:''}
   `, `<button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
@@ -2384,7 +2405,7 @@ function confirmPayCommitment(){
     galones:null, detalle:{}, nota:'Cuota: '+c.nombre,
     createdAt: nowISO(), updatedAt: nowISO(),
   });
-  // ¿Pagaste más de lo normal? El excedente se registra como pérdida por mora (item 20)
+  // Â¿Pagaste mÃ¡s de lo normal? El excedente se registra como pÃ©rdida por mora (item 20)
   if (c.monto > 0 && monto > c.monto){
     const causaEl = document.getElementById('pcCausa');
     if (!Array.isArray(c.historialMora)) c.historialMora = [];
@@ -2409,7 +2430,7 @@ function compromisosPorPagar(){
   return DB.commitments.filter(c=>c.estado==='activo' && isoToDate(c.fechaProximoPago) <= end)
     .sort((a,b)=>a.fechaProximoPago.localeCompare(b.fechaProximoPago));
 }
-// Dashboard de mora (item 19): cuánto se ha perdido en total por pagar tarde
+// Dashboard de mora (item 19): cuÃ¡nto se ha perdido en total por pagar tarde
 function totalMoraPerdidaAllTime(){
   let total=0;
   DB.commitments.forEach(c=> (c.historialMora||[]).forEach(h=> total+=h.excedente));
@@ -2431,18 +2452,18 @@ function renderDeudas(){
   const pagadas = DB.commitments.filter(c=>c.estado==='pagada');
   const moraTotal = totalMoraPerdidaAllTime();
   return `
-    <div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">‹</button><h3>Deudas y Compromisos</h3></div>
+    <div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">â€¹</button><h3>Deudas y Compromisos</h3></div>
     <div class="hero-card">
       <div class="hero-label">Nivel de Endeudamiento</div>
       <div class="hero-value neg">${fmtMoney(totalDeudaActiva())}</div>
       <div class="hero-sub">Suma de saldo pendiente en deudas activas</div>
     </div>
-    ${moraTotal>0?`<div class="stat-card"><div class="lbl">Pérdida histórica por mora</div><div class="val neg">-${fmtMoney(moraTotal)}</div><div class="sub">Excedente pagado de más por atrasos</div></div>`:''}
-    <div class="section-label">Plantillas rápidas</div>
+    ${moraTotal>0?`<div class="stat-card"><div class="lbl">PÃ©rdida histÃ³rica por mora</div><div class="val neg">-${fmtMoney(moraTotal)}</div><div class="sub">Excedente pagado de mÃ¡s por atrasos</div></div>`:''}
+    <div class="section-label">Plantillas rÃ¡pidas</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;">
       ${(DB.categories.commitmentTemplates||[]).map((t,i)=>`<button class="btn btn-ghost btn-sm" data-action="new-commitment-template" data-idx="${i}">+ ${t.nombre}</button>`).join('')}
     </div>
-    ${activos.length===0?'<div class="empty"><b>Sin compromisos activos</b>Registra préstamos, arriendo u otras obligaciones fijas.</div>':
+    ${activos.length===0?'<div class="empty"><b>Sin compromisos activos</b>Registra prÃ©stamos, arriendo u otras obligaciones fijas.</div>':
       `<div class="list">` + activos.map(c=>`
         <div class="row" data-action="edit-commitment" data-id="${c.id}" style="flex-wrap:wrap;">
           ${renderCommitmentRowInner(c)}
@@ -2457,7 +2478,7 @@ function renderCommitmentRowInner(c){
   return `
     <div class="r-main">
       <div class="r-title">${esc(c.nombre)} ${vencido?'<span class="stamp mora" style="font-size:9px;padding:1px 4px;">VENCIDO</span>':''}</div>
-      <div class="r-sub">${c.tipo==='deuda'?`Saldo ${fmtMoney(c.saldoPendiente)} · `:''}Vence ${fmtDateShort(c.fechaProximoPago)} · ${c.frecuencia} · ${c.plazo==='largo'?'Largo plazo':'Corto plazo'} · ${(c.clasificacion||'egreso')==='costo'?'COSTO':'EGRESO'}</div>
+      <div class="r-sub">${c.tipo==='deuda'?`Saldo ${fmtMoney(c.saldoPendiente)} Â· `:''}Vence ${fmtDateShort(c.fechaProximoPago)} Â· ${c.frecuencia} Â· ${c.plazo==='largo'?'Largo plazo':'Corto plazo'} Â· ${(c.clasificacion||'egreso')==='costo'?'COSTO':'EGRESO'}</div>
     </div>
     <div class="r-val mono">${fmtMoney(c.monto)}</div>
     <button class="btn btn-secondary btn-sm" data-action="mark-commitment-paid" data-id="${c.id}">Pagar</button>
@@ -2484,11 +2505,11 @@ function maintFormHtml(m){
   m = m || {nombre:'', intervaloKm:5000, ultimoKm: kmActual(), notas:''};
   return `
     <input type="hidden" id="mtId" value="${m.id||''}">
-    ${m.id?`<button type="button" class="btn btn-danger btn-sm" data-action="delete-maint" data-id="${m.id}" style="margin-bottom:12px;">🗑 Eliminar</button>`:''}
+    ${m.id?`<button type="button" class="btn btn-danger btn-sm" data-action="delete-maint" data-id="${m.id}" style="margin-bottom:12px;">ðŸ—‘ Eliminar</button>`:''}
     <div class="field"><label>Nombre</label><input type="text" id="mtNombre" value="${esc(m.nombre||'')}" placeholder="ej. Cambio de aceite"></div>
     <div class="field-row">
       <div class="field"><label>Intervalo (km)</label><input type="number" id="mtIntervalo" value="${m.intervaloKm}" placeholder="5000"></div>
-      <div class="field"><label>Último servicio (km)</label><input type="number" id="mtUltimo" value="${m.ultimoKm}" placeholder="0"></div>
+      <div class="field"><label>Ãšltimo servicio (km)</label><input type="number" id="mtUltimo" value="${m.ultimoKm}" placeholder="0"></div>
     </div>
     <div class="field"><label>Notas</label><input type="text" id="mtNotas" value="${esc(m.notas||'')}" placeholder="opcional"></div>
   `;
@@ -2514,7 +2535,7 @@ function saveMaintFromForm(){
   saveDB(); closeModal(); showToast('Guardado'); render();
 }
 function confirmDeleteMaint(id){
-  openModal('¿Eliminar?', '', `<button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
+  openModal('Â¿Eliminar?', '', `<button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
     <button class="btn btn-danger" data-action="do-delete-maint" data-id="${id}">Eliminar</button>`);
 }
 function deleteMaint(id){
@@ -2533,19 +2554,19 @@ function renderMantenimiento(){
   const actual = kmActual();
   const items = DB.maintenance;
   return `
-    <div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">‹</button><h3>Mantenimiento</h3></div>
-    <div class="stat-card"><div class="lbl">Kilometraje actual (odómetro)</div><div class="val">${actual.toLocaleString('es-EC')} km</div><div class="sub">Calculado del km final más alto registrado en viajes</div></div>
+    <div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">â€¹</button><h3>Mantenimiento</h3></div>
+    <div class="stat-card"><div class="lbl">Kilometraje actual (odÃ³metro)</div><div class="val">${actual.toLocaleString('es-EC')} km</div><div class="sub">Calculado del km final mÃ¡s alto registrado en viajes</div></div>
     ${items.length===0?'<div class="empty"><b>Sin alertas configuradas</b>Crea alertas tipo "cambio de aceite cada 5,000 km".</div>':
       `<div class="list">` + items.map(m=>{
         const st = maintenanceStatus(m);
         const color = st.estado==='vencido'?'neg':(st.estado==='proximo'?'':'');
         return `<div class="row">
           <div class="r-main">
-            <div class="r-title">${esc(m.nombre)} ${st.estado==='vencido'?'<span class="stamp mora" style="font-size:9px;padding:1px 4px;">VENCIDO</span>':(st.estado==='proximo'?'<span class="stamp por-cobrar" style="font-size:9px;padding:1px 4px;">PRÓXIMO</span>':'')}</div>
-            <div class="r-sub">Próximo a los ${st.proximoKm.toLocaleString('es-EC')} km · Faltan ${st.restante.toLocaleString('es-EC')} km</div>
+            <div class="r-title">${esc(m.nombre)} ${st.estado==='vencido'?'<span class="stamp mora" style="font-size:9px;padding:1px 4px;">VENCIDO</span>':(st.estado==='proximo'?'<span class="stamp por-cobrar" style="font-size:9px;padding:1px 4px;">PRÃ“XIMO</span>':'')}</div>
+            <div class="r-sub">PrÃ³ximo a los ${st.proximoKm.toLocaleString('es-EC')} km Â· Faltan ${st.restante.toLocaleString('es-EC')} km</div>
           </div>
           <button class="btn btn-secondary btn-sm" data-action="register-maint-done" data-id="${m.id}">Hecho</button>
-          <button class="icon-btn" style="width:28px;height:28px;" data-action="edit-maint" data-id="${m.id}">✎</button>
+          <button class="icon-btn" style="width:28px;height:28px;" data-action="edit-maint" data-id="${m.id}">âœŽ</button>
         </div>`;
       }).join('') + `</div>`}
     <button class="fab" data-action="new-maint" aria-label="Nueva alerta">+</button>
@@ -2583,14 +2604,14 @@ function computeRendimientoHistorico(periodosAtras){
   return gal>0 ? round2(km/gal) : null;
 }
 
-// Rentabilidad real de un mes calendario (item 29): utilidad de viajes − egresos fijos − cuotas
-// compañía − deudas que vencen ese mes = lo que realmente queda.
+// Rentabilidad real de un mes calendario (item 29): utilidad de viajes âˆ’ egresos fijos âˆ’ cuotas
+// compaÃ±Ã­a âˆ’ deudas que vencen ese mes = lo que realmente queda.
 function rentabilidadRealMes(anio, mes){
   const trips = DB.trips.filter(t=>t.anio===anio && t.mes===mes);
   const expenses = DB.expenses.filter(e=>e.anio===anio && e.mes===mes);
   const utilidadViajes = periodUtilidadNetaViajes(trips);
-  const cuotasCompania = round2(expenses.filter(e=>e.categoria==='Cuota Compañía').reduce((s,e)=>s+e.monto,0));
-  const egresosFijos = round2(expenses.filter(e=>expenseTipo(e.categoria)==='egreso' && e.categoria!=='Cuota Compañía' && e.categoria!=='Préstamos y Deudas').reduce((s,e)=>s+e.monto,0));
+  const cuotasCompania = round2(expenses.filter(e=>e.categoria==='Cuota CompaÃ±Ã­a').reduce((s,e)=>s+e.monto,0));
+  const egresosFijos = round2(expenses.filter(e=>expenseTipo(e.categoria)==='egreso' && e.categoria!=='Cuota CompaÃ±Ã­a' && e.categoria!=='PrÃ©stamos y Deudas').reduce((s,e)=>s+e.monto,0));
   const deudasVencenMes = round2(DB.commitments.filter(c=>c.tipo==='deuda' && c.estado==='activo' &&
     (()=>{ const d=parseISO(c.fechaProximoPago); return d.getFullYear()===anio && d.getMonth()+1===mes; })()
   ).reduce((s,c)=>s+(c.monto||0),0));
@@ -2598,7 +2619,7 @@ function rentabilidadRealMes(anio, mes){
   const real = round2(utilidadViajes - egresosFijos - cuotasCompania - deudasVencenMes);
   return {utilidadViajes, egresosFijos, cuotasCompania, deudasVencenMes, moraPerdida, real};
 }
-// Total de compromisos (deuda + fijo) que vencen en un mes calendario (proyección, no requiere datos reales)
+// Total de compromisos (deuda + fijo) que vencen en un mes calendario (proyecciÃ³n, no requiere datos reales)
 function compromisosQueVencenMes(anio, mes){
   return round2(DB.commitments.filter(c=>c.estado==='activo' &&
     (()=>{ const d=parseISO(c.fechaProximoPago); return d.getFullYear()===anio && d.getMonth()+1===mes; })()
@@ -2610,20 +2631,20 @@ function buildAlerts(trips, expenses){
   // Mora de cobros
   const enMora = DB.producers.filter(p=>producerStats(p).enMora);
   if (enMora.length){
-    alerts.push({level:'danger', text:`<b>${enMora.length} productor(es)</b> con cobro vencido hace más de ${DB.meta.diasMoraAlerta} días.`});
+    alerts.push({level:'danger', text:`<b>${enMora.length} productor(es)</b> con cobro vencido hace mÃ¡s de ${DB.meta.diasMoraAlerta} dÃ­as.`});
   }
   // Cuentas por cobrar en zona roja/negra (item 31)
   const enRiesgo = cuentasPorCobrarAbiertas().filter(t=>{ const sm=semaforoCobro(t); return sm==='rojo'||sm==='negro'; });
   if (enRiesgo.length){
-    alerts.push({level:'danger', text:`<b>${enRiesgo.length} cuenta(s) por cobrar</b> en zona roja/negra por ${fmtMoney(round2(enRiesgo.reduce((s,t)=>s+tripSaldoPendiente(t),0)))} — no cuentan como dinero disponible.`});
+    alerts.push({level:'danger', text:`<b>${enRiesgo.length} cuenta(s) por cobrar</b> en zona roja/negra por ${fmtMoney(round2(enRiesgo.reduce((s,t)=>s+tripSaldoPendiente(t),0)))} â€” no cuentan como dinero disponible.`});
   }
   // Cargueros sin pagar (item 31)
   const diasAlertaCarg = DB.meta.diasAlertaCarguero || 5;
   const cargPend = carguerosPendientes().filter(t=>diasSinPagarCarguero(t) >= diasAlertaCarg);
   if (cargPend.length){
-    alerts.push({level:'warn', text:`<b>${cargPend.length} carguero(s)</b> llevan ${diasAlertaCarg}+ días sin que les pagues (${fmtMoney(round2(cargPend.reduce((s,t)=>s+cargueroMontoTrip(t),0)))}).`});
+    alerts.push({level:'warn', text:`<b>${cargPend.length} carguero(s)</b> llevan ${diasAlertaCarg}+ dÃ­as sin que les pagues (${fmtMoney(round2(cargPend.reduce((s,t)=>s+cargueroMontoTrip(t),0)))}).`});
   }
-  // Endeudamiento crítico
+  // Endeudamiento crÃ­tico
   const deuda = totalDeudaActiva();
   const avgIngreso = computeAvgMonthlyIncome();
   if (avgIngreso>0 && deuda > avgIngreso*(DB.meta.thresholdEndeudamientoPct/100)){
@@ -2643,7 +2664,7 @@ function buildAlerts(trips, expenses){
   const actual = computeRendimientoActual(trips, expenses);
   const historico = computeRendimientoHistorico(4);
   if (actual!=null && historico!=null && actual < historico*0.7){
-    alerts.push({level:'warn', text:`Rendimiento cayó a <b>${actual} km/gal</b> (antes ${historico} km/gal). Revisa fugas, robo de diésel o mantenimiento.`});
+    alerts.push({level:'warn', text:`Rendimiento cayÃ³ a <b>${actual} km/gal</b> (antes ${historico} km/gal). Revisa fugas, robo de diÃ©sel o mantenimiento.`});
   }
   return alerts;
 }
@@ -2668,7 +2689,7 @@ function renderResumen(){
 
   const rEste = rentabilidadRealMes(now.getFullYear(), now.getMonth()+1);
   const colorReal = rEste.real>=0 ? (rEste.real>=rEste.utilidadViajes*0.3 ? 'verde' : 'amarillo') : 'rojo';
-  const realIcon = colorReal==='verde'?'🟢':(colorReal==='amarillo'?'🟡':'🔴');
+  const realIcon = colorReal==='verde'?'ðŸŸ¢':(colorReal==='amarillo'?'ðŸŸ¡':'ðŸ”´');
 
   const porCobrar = cuentasPorCobrarAbiertas();
   const porPagar = compromisosPorPagar();
@@ -2677,35 +2698,35 @@ function renderResumen(){
     <div class="hero-card">
       <div class="hero-label">Utilidad Neta Real (periodo)</div>
       <div class="hero-value ${utilidadNeta>=0?'pos':'neg'}">${fmtMoney(utilidadNeta)}</div>
-      <div class="hero-sub">Operativa del camión ${fmtMoney(utilidadOperativa)} − Gasto de vida ${fmtMoney(gastoVida)}</div>
+      <div class="hero-sub">Operativa del camiÃ³n ${fmtMoney(utilidadOperativa)} âˆ’ Gasto de vida ${fmtMoney(gastoVida)}</div>
     </div>
 
-    ${alerts.map(a=>`<div class="alert ${a.level}"><span class="a-icon">${a.level==='danger'?'⚠':'●'}</span><span>${a.text}</span></div>`).join('')}
+    ${alerts.map(a=>`<div class="alert ${a.level}"><span class="a-icon">${a.level==='danger'?'âš ':'â—'}</span><span>${a.text}</span></div>`).join('')}
 
-    <div class="section-label">Tu situación de un vistazo</div>
+    <div class="section-label">Tu situaciÃ³n de un vistazo</div>
     <div class="dash-blocks">
-      <div class="dash-block tienes"><div class="lbl">💰 Lo que tienes</div><div class="val">${fmtMoney(round2(bal.efectivo+bal.banco))}</div><div class="sub">Efectivo ${fmtMoney(bal.efectivo)} · Banco ${fmtMoney(bal.banco)}</div></div>
-      <div class="dash-block deben"><div class="lbl">⏳ Lo que te deben</div><div class="val">${fmtMoney(disponibleCobrar)}</div><div class="sub">${riesgoCobrar>0?`+${fmtMoney(riesgoCobrar)} en riesgo (no cuenta)`:'Todo dentro de plazo'}</div></div>
-      <div class="dash-block no-tuyo"><div class="lbl">⚠️ No es tuyo</div><div class="val">${fmtMoney(noEsTuyo)}</div><div class="sub">Pendiente a cargueros</div></div>
-      <div class="dash-block debes"><div class="lbl">📤 Lo que debes</div><div class="val">${fmtMoney(round2(debesEsteMes+debesProxMes))}</div><div class="sub">Este mes ${fmtMoney(debesEsteMes)} · Próximo ${fmtMoney(debesProxMes)}</div></div>
+      <div class="dash-block tienes"><div class="lbl">ðŸ’° Lo que tienes</div><div class="val">${fmtMoney(round2(bal.efectivo+bal.banco))}</div><div class="sub">Efectivo ${fmtMoney(bal.efectivo)} Â· Banco ${fmtMoney(bal.banco)}</div></div>
+      <div class="dash-block deben"><div class="lbl">â³ Lo que te deben</div><div class="val">${fmtMoney(disponibleCobrar)}</div><div class="sub">${riesgoCobrar>0?`+${fmtMoney(riesgoCobrar)} en riesgo (no cuenta)`:'Todo dentro de plazo'}</div></div>
+      <div class="dash-block no-tuyo"><div class="lbl">âš ï¸ No es tuyo</div><div class="val">${fmtMoney(noEsTuyo)}</div><div class="sub">Pendiente a cargueros</div></div>
+      <div class="dash-block debes"><div class="lbl">ðŸ“¤ Lo que debes</div><div class="val">${fmtMoney(round2(debesEsteMes+debesProxMes))}</div><div class="sub">Este mes ${fmtMoney(debesEsteMes)} Â· PrÃ³ximo ${fmtMoney(debesProxMes)}</div></div>
     </div>
 
     <div class="card">
       <div class="section-label" style="margin-top:0;">Rentabilidad real del mes ${realIcon}</div>
       <div class="computed-line"><span>Utilidad viajes</span><b>${fmtMoney(rEste.utilidadViajes)}</b></div>
-      <div class="computed-line"><span>− Egresos fijos</span><b>${fmtMoney(rEste.egresosFijos)}</b></div>
-      <div class="computed-line"><span>− Cuotas compañía</span><b>${fmtMoney(rEste.cuotasCompania)}</b></div>
-      <div class="computed-line"><span>− Deudas que vencen este mes</span><b>${fmtMoney(rEste.deudasVencenMes)}</b></div>
+      <div class="computed-line"><span>âˆ’ Egresos fijos</span><b>${fmtMoney(rEste.egresosFijos)}</b></div>
+      <div class="computed-line"><span>âˆ’ Cuotas compaÃ±Ã­a</span><b>${fmtMoney(rEste.cuotasCompania)}</b></div>
+      <div class="computed-line"><span>âˆ’ Deudas que vencen este mes</span><b>${fmtMoney(rEste.deudasVencenMes)}</b></div>
       <div class="computed-line" style="border-top:1px solid var(--border);margin-top:4px;padding-top:8px;">
         <span style="font-weight:700;color:var(--text);">= Lo que realmente te queda</span>
         <b style="font-size:16px;color:${rEste.real>=0?'var(--green)':'var(--red)'};">${fmtMoney(rEste.real)}</b>
       </div>
     </div>
 
-    <div class="view-title">Este mes vs. próximo mes</div>
+    <div class="view-title">Este mes vs. prÃ³ximo mes</div>
     <div class="side-by-side">
       <div class="sbs-card"><div class="lbl">Este mes (real)</div><div class="val ${rEste.real>=0?'pos':'neg'}">${fmtMoney(rEste.real)}</div></div>
-      <div class="sbs-card"><div class="lbl">Próximo mes (compromisos)</div><div class="val neg">-${fmtMoney(debesProxMes)}</div></div>
+      <div class="sbs-card"><div class="lbl">PrÃ³ximo mes (compromisos)</div><div class="val neg">-${fmtMoney(debesProxMes)}</div></div>
     </div>
 
     <div class="caja-row">
@@ -2725,7 +2746,7 @@ function renderResumen(){
       return `<div class="row">
         <div class="r-main">
           <div class="r-title">${info.icon} ${esc(t.productorNombre||'Sin nombre')}</div>
-          <div class="r-sub">${fmtDateShort(t.fecha)} · ${esc(t.tipoCarga)} · ${diasSinPagar(t)}d</div>
+          <div class="r-sub">${fmtDateShort(t.fecha)} Â· ${esc(t.tipoCarga)} Â· ${diasSinPagar(t)}d</div>
         </div>
         <div class="r-val neg">${fmtMoney(tripSaldoPendiente(t))}</div>
         ${t.productorTelefono?`<span class="icon-action call" data-action="call" data-phone="${esc(t.productorTelefono)}">
@@ -2767,10 +2788,10 @@ function renderTrendBars(){
       </div>`;
   }).join('') + `</div>`;
 }
-function afterRenderResumen(){ /* sin librerías externas: el gráfico se genera como HTML/CSS puro en renderTrendBars() */ }
+function afterRenderResumen(){ /* sin librerÃ­as externas: el grÃ¡fico se genera como HTML/CSS puro en renderTrendBars() */ }
 
 /* ============================================================
-   CIERRE MENSUAL — P&G de un mes cerrado (item 32-34)
+   CIERRE MENSUAL â€” P&G de un mes cerrado (item 32-34)
    ============================================================ */
 let cierreState = {anio:null, mes:null};
 function initCierreState(){
@@ -2838,11 +2859,11 @@ function renderCierreMensual(){
   const pl = cierreMesPL(anio, mes);
   const porProductor = rentabilidadPorProductorMes(anio, mes).slice(0,8);
   return `
-    <div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">‹</button><h3>Cierre Mensual</h3></div>
+    <div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">â€¹</button><h3>Cierre Mensual</h3></div>
     <div class="period-nav" style="margin-bottom:4px;">
-      <button data-action="cierre-prev" aria-label="Mes anterior">‹</button>
+      <button data-action="cierre-prev" aria-label="Mes anterior">â€¹</button>
       <span class="period-label">${MES_NOMBRES[mes-1]} ${anio}</span>
-      <button data-action="cierre-next" aria-label="Mes siguiente">›</button>
+      <button data-action="cierre-next" aria-label="Mes siguiente">â€º</button>
     </div>
 
     <div class="hero-card">
@@ -2852,11 +2873,11 @@ function renderCierreMensual(){
     </div>
 
     <div class="card">
-      <div class="section-label" style="margin-top:0;">Estado de Pérdidas y Ganancias</div>
+      <div class="section-label" style="margin-top:0;">Estado de PÃ©rdidas y Ganancias</div>
       <div class="computed-line"><span>Total ingresos brutos</span><b>${fmtMoney(pl.ingresosBrutos)}</b></div>
-      <div class="computed-line"><span>− Total costos (ligados a viajes)</span><b>${fmtMoney(pl.costosTotal)}</b></div>
-      <div class="computed-line"><span>− Total egresos (fijos y variables)</span><b>${fmtMoney(pl.egresosTotal)}</b></div>
-      <div class="computed-line"><span>− Mora pagada (pérdida)</span><b>${fmtMoney(pl.moraPerdida)}</b></div>
+      <div class="computed-line"><span>âˆ’ Total costos (ligados a viajes)</span><b>${fmtMoney(pl.costosTotal)}</b></div>
+      <div class="computed-line"><span>âˆ’ Total egresos (fijos y variables)</span><b>${fmtMoney(pl.egresosTotal)}</b></div>
+      <div class="computed-line"><span>âˆ’ Mora pagada (pÃ©rdida)</span><b>${fmtMoney(pl.moraPerdida)}</b></div>
       <div class="computed-line" style="border-top:1px solid var(--border);margin-top:4px;padding-top:8px;">
         <span style="font-weight:700;color:var(--text);">= Utilidad neta real</span>
         <b style="font-size:16px;color:${pl.utilidadNetaReal>=0?'var(--green)':'var(--red)'};">${fmtMoney(pl.utilidadNetaReal)}</b>
@@ -2886,12 +2907,12 @@ function setReportsTab(tab){ reportsTab = tab; render(); }
 function renderReportes(){
   const expenses = DB.expenses.filter(e=>inPeriod(e));
   return `
-    <div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">‹</button><h3>Reportes</h3></div>
+    <div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">â€¹</button><h3>Reportes</h3></div>
     <div class="tabbar">
       <button class="${reportsTab==='gastos'?'active':''}" data-action="reports-tab" data-tab="gastos">Gastos</button>
       <button class="${reportsTab==='deudas'?'active':''}" data-action="reports-tab" data-tab="deudas">Deudas</button>
-      <button class="${reportsTab==='diario'?'active':''}" data-action="reports-tab" data-tab="diario">Día a día</button>
-      <button class="${reportsTab==='compania'?'active':''}" data-action="reports-tab" data-tab="compania">Compañía</button>
+      <button class="${reportsTab==='diario'?'active':''}" data-action="reports-tab" data-tab="diario">DÃ­a a dÃ­a</button>
+      <button class="${reportsTab==='compania'?'active':''}" data-action="reports-tab" data-tab="compania">CompaÃ±Ã­a</button>
       <button class="${reportsTab==='combustible'?'active':''}" data-action="reports-tab" data-tab="combustible">Combustible</button>
     </div>
     ${reportsTab==='gastos'? renderReporteGastos(expenses)
@@ -2909,9 +2930,9 @@ function renderReporteGastos(expenses){
   const total = rows.reduce((s,r)=>s+r[1],0);
   return `
     <div class="card">${renderCategoryHBars(rows.slice(0,6))}</div>
-    <div class="view-title">Por categoría<span class="mono">${fmtMoney(total)}</span></div>
+    <div class="view-title">Por categorÃ­a<span class="mono">${fmtMoney(total)}</span></div>
     ${rows.length===0?'<div class="empty"><b>Sin gastos en el periodo</b></div>':`<div class="list">` + rows.map(([cat,monto])=>`
-      <div class="row"><div class="r-main"><div class="r-title">${cat}</div><div class="r-sub">${expenseGrupo(cat)==='camion'?'Camión':'Personal'}</div></div><div class="r-val neg">-${fmtMoney(monto)}</div></div>`).join('') + `</div>`}
+      <div class="row"><div class="r-main"><div class="r-title">${cat}</div><div class="r-sub">${expenseGrupo(cat)==='camion'?'CamiÃ³n':'Personal'}</div></div><div class="r-val neg">-${fmtMoney(monto)}</div></div>`).join('') + `</div>`}
   `;
 }
 function renderCategoryHBars(rows){
@@ -2943,32 +2964,32 @@ function renderReporteDiario(expenses){
       <div class="stat-card"><div class="lbl">Arriendo</div><div class="val neg">-${fmtMoney(totalArriendo)}</div></div>
     </div>
     ${items.length===0?'<div class="empty"><b>Sin gastos de comida o arriendo</b></div>':`<div class="list">` + items.map(e=>`
-      <div class="row"><div class="r-main"><div class="r-title">${esc(e.categoria)}</div><div class="r-sub">${esc(expenseSubtitle(e))} · ${fmtDateShort(e.fecha)}</div></div><div class="r-val neg">-${fmtMoney(e.monto)}</div></div>`).join('') + `</div>`}
+      <div class="row"><div class="r-main"><div class="r-title">${esc(e.categoria)}</div><div class="r-sub">${esc(expenseSubtitle(e))} Â· ${fmtDateShort(e.fecha)}</div></div><div class="r-val neg">-${fmtMoney(e.monto)}</div></div>`).join('') + `</div>`}
   `;
 }
 
-// Módulo Compañía / Facturación (item 25-27): cuánto se pagó vs. cuánto se facturó a través de ella
+// MÃ³dulo CompaÃ±Ã­a / FacturaciÃ³n (item 25-27): cuÃ¡nto se pagÃ³ vs. cuÃ¡nto se facturÃ³ a travÃ©s de ella
 function renderReporteCompania(){
   const trips = DB.trips.filter(t=>inPeriod(t));
   const expenses = DB.expenses.filter(e=>inPeriod(e));
-  const cuotaPagada = round2(expenses.filter(e=>e.categoria==='Cuota Compañía').reduce((s,e)=>s+e.monto,0));
+  const cuotaPagada = round2(expenses.filter(e=>e.categoria==='Cuota CompaÃ±Ã­a').reduce((s,e)=>s+e.monto,0));
   const facturados = trips.filter(t=>t.requiereFactura);
   const totalFacturado = round2(facturados.reduce((s,t)=>s+tripIngresoBruto(t),0));
   const totalRetenido = round2(facturados.reduce((s,t)=>s+costoFacturaTrip(t),0));
   return `
     <div class="stat-grid">
-      <div class="stat-card"><div class="lbl">Cuota pagada a la compañía</div><div class="val neg">-${fmtMoney(cuotaPagada)}</div></div>
+      <div class="stat-card"><div class="lbl">Cuota pagada a la compaÃ±Ã­a</div><div class="val neg">-${fmtMoney(cuotaPagada)}</div></div>
       <div class="stat-card"><div class="lbl">Total facturado por ella</div><div class="val">${fmtMoney(totalFacturado)}</div></div>
       <div class="stat-card"><div class="lbl">% retenido en viajes con factura</div><div class="val neg">-${fmtMoney(totalRetenido)}</div></div>
       <div class="stat-card"><div class="lbl">Viajes con factura</div><div class="val">${facturados.length}</div></div>
     </div>
     <div class="view-title">Viajes facturados este periodo</div>
     ${facturados.length===0?'<div class="empty"><b>Sin viajes con factura este periodo</b></div>':`<div class="list">` + facturados.map(t=>`
-      <div class="row" data-action="edit-trip" data-id="${t.id}"><div class="r-main"><div class="r-title">${esc(t.productorNombre||'Sin productor')}</div><div class="r-sub">${fmtDateShort(t.fecha)} · ${t.facturaPct||0}% compañía</div></div><div class="r-val neg">-${fmtMoney(costoFacturaTrip(t))}</div></div>`).join('') + `</div>`}
+      <div class="row" data-action="edit-trip" data-id="${t.id}"><div class="r-main"><div class="r-title">${esc(t.productorNombre||'Sin productor')}</div><div class="r-sub">${fmtDateShort(t.fecha)} Â· ${t.facturaPct||0}% compaÃ±Ã­a</div></div><div class="r-val neg">-${fmtMoney(costoFacturaTrip(t))}</div></div>`).join('') + `</div>`}
   `;
 }
 
-// Combustible (item 35-37): historial de consumo por viaje para detectar si el camión consume más de lo normal
+// Combustible (item 35-37): historial de consumo por viaje para detectar si el camiÃ³n consume mÃ¡s de lo normal
 function tripConsumoGalones(t){
   const cb = t.combustible||{};
   if (cb.salida==null || cb.regreso==null) return null;
@@ -2980,15 +3001,15 @@ function renderReporteCombustible(){
   const consumos = trips.map(t=>tripConsumoGalones(t));
   const promedio = consumos.length ? round2(consumos.reduce((s,v)=>s+v,0)/consumos.length) : null;
   return `
-    <div class="stat-card"><div class="lbl">Consumo promedio por viaje</div><div class="val">${promedio!=null?promedio+' gal':'—'}</div><div class="sub">Calculado del medidor salida/regreso de cada viaje</div></div>
+    <div class="stat-card"><div class="lbl">Consumo promedio por viaje</div><div class="val">${promedio!=null?promedio+' gal':'â€”'}</div><div class="sub">Calculado del medidor salida/regreso de cada viaje</div></div>
     <div class="view-title">Historial de consumo</div>
     ${trips.length===0?'<div class="empty"><b>Sin datos de combustible este periodo</b>Usa el medidor en cada viaje (salida/regreso).</div>':`<div class="list">` + trips.map(t=>{
       const c = tripConsumoGalones(t);
       const anomalia = promedio!=null && promedio>0 && c > promedio*1.3;
       return `<div class="row" data-action="edit-trip" data-id="${t.id}">
         <div class="r-main">
-          <div class="r-title">${fmtDateShort(t.fecha)} · ${esc(t.ruta || t.tipoCarga)} ${anomalia?'<span class="stamp mora" style="font-size:9px;padding:1px 4px;">ALTO</span>':''}</div>
-          <div class="r-sub">Salida ${t.combustible.salida}% · Regreso ${t.combustible.regreso}%</div>
+          <div class="r-title">${fmtDateShort(t.fecha)} Â· ${esc(t.ruta || t.tipoCarga)} ${anomalia?'<span class="stamp mora" style="font-size:9px;padding:1px 4px;">ALTO</span>':''}</div>
+          <div class="r-sub">Salida ${t.combustible.salida}% Â· Regreso ${t.combustible.regreso}%</div>
         </div>
         <div class="r-val">${c} gal</div>
       </div>`;
@@ -2996,10 +3017,10 @@ function renderReporteCombustible(){
   `;
 }
 
-function afterRenderReportes(){ /* sin librerías externas: el gráfico de categorías se genera en renderCategoryHBars() */ }
+function afterRenderReportes(){ /* sin librerÃ­as externas: el grÃ¡fico de categorÃ­as se genera en renderCategoryHBars() */ }
 
 /* ============================================================
-   CONFIGURACIÓN (CATEGORÍAS, SEGURIDAD, EXPORTAR)
+   CONFIGURACIÃ“N (CATEGORÃAS, SEGURIDAD, EXPORTAR)
    ============================================================ */
 function chipListHtml(catKey, label){
   const list = DB.categories[catKey];
@@ -3008,30 +3029,30 @@ function chipListHtml(catKey, label){
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;">
       ${list.map(v=>`<span class="row" style="display:inline-flex;width:auto;padding:6px 8px;gap:6px;">
         <span style="font-size:12.5px;">${esc(v)}</span>
-        <button data-action="cat-delete" data-cat="${catKey}" data-value="${esc(v)}" style="background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:13px;">✕</button>
+        <button data-action="cat-delete" data-cat="${catKey}" data-value="${esc(v)}" style="background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:13px;">âœ•</button>
       </span>`).join('')}
     </div>
     <div class="cactus-add">
-      <input type="text" id="catInput-${catKey}" placeholder="Añadir...">
-      <button type="button" class="btn btn-secondary btn-sm" data-action="cat-add" data-cat="${catKey}">Añadir</button>
+      <input type="text" id="catInput-${catKey}" placeholder="AÃ±adir...">
+      <button type="button" class="btn btn-secondary btn-sm" data-action="cat-add" data-cat="${catKey}">AÃ±adir</button>
     </div>
   `;
 }
 function expenseCatListHtml(){
   const list = DB.categories.expenseCategory;
   return `
-    <div class="section-label">Categorías de Gasto</div>
+    <div class="section-label">CategorÃ­as de Gasto</div>
     <div class="list">
       ${list.map(c=>`<div class="row">
         <div class="r-main"><div class="r-title">${esc(c.nombre)}</div></div>
         <button class="btn btn-ghost btn-sm" data-action="toggle-expense-tipo" data-value="${esc(c.nombre)}">${(c.tipo||'egreso')==='costo'?'COSTO':'EGRESO'}</button>
-        <button class="btn btn-ghost btn-sm" data-action="toggle-expense-grupo" data-value="${esc(c.nombre)}">${c.grupo==='camion'?'🚚 Camión':'🏠 Personal'}</button>
-        <button data-action="cat-delete" data-cat="expenseCategory" data-value="${esc(c.nombre)}" style="background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:15px;">✕</button>
+        <button class="btn btn-ghost btn-sm" data-action="toggle-expense-grupo" data-value="${esc(c.nombre)}">${c.grupo==='camion'?'ðŸšš CamiÃ³n':'ðŸ  Personal'}</button>
+        <button data-action="cat-delete" data-cat="expenseCategory" data-value="${esc(c.nombre)}" style="background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:15px;">âœ•</button>
       </div>`).join('')}
     </div>
     <div class="cactus-add">
-      <input type="text" id="catInput-expenseCategory" placeholder="Añadir categoría...">
-      <button type="button" class="btn btn-secondary btn-sm" data-action="cat-add" data-cat="expenseCategory">Añadir</button>
+      <input type="text" id="catInput-expenseCategory" placeholder="AÃ±adir categorÃ­a...">
+      <button type="button" class="btn btn-secondary btn-sm" data-action="cat-add" data-cat="expenseCategory">AÃ±adir</button>
     </div>
   `;
 }
@@ -3083,7 +3104,7 @@ function exportCSV(){
   DB.trips.forEach(t=>tripRows.push([
     t.id,t.fecha,t.semana,t.mes,t.anio,t.tipoCarga,t.origenViaje||'',t.productorNombre,t.productorTelefono,t.ruta,
     t.valorFlete,t.anticipo,t.descuento,serviciosAdicionalesTotal(t),tripSaldoPendiente(t),t.estado,t.metodoRecibo,
-    t.requiereFactura?'Sí':'No', t.facturaPct||0, costoFacturaTrip(t),
+    t.requiereFactura?'SÃ­':'No', t.facturaPct||0, costoFacturaTrip(t),
     t.carguero?t.carguero.nombre:'', t.carguero?t.carguero.monto:'', t.carguero?(t.carguero.pagado?'Pagado':'Pendiente'):'',
     (t.costosRuta||{}).diesel||0,(t.costosRuta||{}).peaje||0,(t.costosRuta||{}).comida||0,(t.costosRuta||{}).otro||0,
     tripUtilidadNeta(t),
@@ -3110,7 +3131,7 @@ function downloadBlob(blob, filename){
 
 function renderConfig(){
   return `
-    <div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">‹</button><h3>Configuración</h3></div>
+    <div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">â€¹</button><h3>ConfiguraciÃ³n</h3></div>
 
     <div class="card">
       <div class="section-label">Seguridad</div>
@@ -3123,11 +3144,11 @@ function renderConfig(){
 
     <div class="card">
       <div class="section-label">Alertas</div>
-      <div class="field"><label>Días para marcar mora en cobros (productor)</label><input type="number" id="cfgDiasMora" value="${DB.meta.diasMoraAlerta}"></div>
-      <div class="field"><label>Plazo normal de cobro (días) — semáforo de cuentas por cobrar</label><input type="number" id="cfgDiasPlazoCobro" value="${DB.meta.diasPlazoCobro}"></div>
-      <div class="field"><label>Días sin pagar a un carguero para alertar</label><input type="number" id="cfgDiasAlertaCarguero" value="${DB.meta.diasAlertaCarguero}"></div>
+      <div class="field"><label>DÃ­as para marcar mora en cobros (productor)</label><input type="number" id="cfgDiasMora" value="${DB.meta.diasMoraAlerta}"></div>
+      <div class="field"><label>Plazo normal de cobro (dÃ­as) â€” semÃ¡foro de cuentas por cobrar</label><input type="number" id="cfgDiasPlazoCobro" value="${DB.meta.diasPlazoCobro}"></div>
+      <div class="field"><label>DÃ­as sin pagar a un carguero para alertar</label><input type="number" id="cfgDiasAlertaCarguero" value="${DB.meta.diasAlertaCarguero}"></div>
       <div class="field"><label>Capacidad del tanque (galones)</label><input type="number" id="cfgCapacidadTanque" value="${DB.meta.capacidadTanqueGalones}"></div>
-      <div class="field"><label>% del ingreso mensual promedio para alerta de endeudamiento crítico</label><input type="number" id="cfgThreshold" value="${DB.meta.thresholdEndeudamientoPct}"></div>
+      <div class="field"><label>% del ingreso mensual promedio para alerta de endeudamiento crÃ­tico</label><input type="number" id="cfgThreshold" value="${DB.meta.thresholdEndeudamientoPct}"></div>
       <button class="btn btn-secondary" data-action="save-alert-settings">Guardar</button>
     </div>
 
@@ -3145,7 +3166,7 @@ function renderConfig(){
         <button class="btn btn-secondary" data-action="export-json">Respaldo JSON</button>
         <button class="btn btn-secondary" data-action="export-csv">Exportar CSV</button>
       </div>
-      <div class="field-hint" style="margin-top:8px;">Guarda el respaldo en tu Drive o compártelo, así nunca pierdes la información aunque cambies de teléfono.</div>
+      <div class="field-hint" style="margin-top:8px;">Guarda el respaldo en tu Drive o compÃ¡rtelo, asÃ­ nunca pierdes la informaciÃ³n aunque cambies de telÃ©fono.</div>
     </div>
   `;
 }
@@ -3156,31 +3177,31 @@ function saveAlertSettings(){
   DB.meta.capacidadTanqueGalones = Number(document.getElementById('cfgCapacidadTanque').value)||200;
   DB.meta.thresholdEndeudamientoPct = Number(document.getElementById('cfgThreshold').value)||60;
   touchSettings();
-  saveDB(); showToast('Configuración guardada'); render();
+  saveDB(); showToast('ConfiguraciÃ³n guardada'); render();
 }
 
 /* ============================================================
-   MÁS (MENÚ SECUNDARIO)
+   MÃS (MENÃš SECUNDARIO)
    ============================================================ */
 function renderMas(){
   const item = (view,icon,title,sub,action)=>`
     <div class="menu-item" data-action="${action||'goto'}" data-view="${view}">
       <div class="m-icon">${icon}</div>
       <div class="m-text"><b>${title}</b><span>${sub}</span></div>
-      <span class="m-arrow">›</span>
+      <span class="m-arrow">â€º</span>
     </div>`;
   return `
-    <div class="view-title">Más</div>
+    <div class="view-title">MÃ¡s</div>
     <div class="menu-list">
-      ${item('productores','👤','Productores','Historial, mora y contacto')}
-      ${item('cuentas-por-cobrar','⏳','Cuentas por Cobrar','Semáforo de cobro')}
-      ${item('cargueros','🚚','Cargueros','Dinero en tránsito, no es tuyo')}
-      ${item('deudas','💳','Deudas y Compromisos','Préstamos, arriendo, cuotas')}
-      ${item('cierre-mensual','📅','Cierre Mensual','P&G del mes, comparativo')}
-      ${item('mantenimiento','🔧','Mantenimiento','Alertas por kilometraje')}
-      ${item('reportes','📊','Reportes','Desgloses y gráficos')}
-      ${item('config','⚙️','Configuración','Categorías, PIN, exportar')}
-      ${item('sync','🔄','Sincronización','Google Sheets, automático')}
+      ${item('productores','ðŸ‘¤','Productores','Historial, mora y contacto')}
+      ${item('cuentas-por-cobrar','â³','Cuentas por Cobrar','SemÃ¡foro de cobro')}
+      ${item('cargueros','ðŸšš','Cargueros','Dinero en trÃ¡nsito, no es tuyo')}
+      ${item('deudas','ðŸ’³','Deudas y Compromisos','PrÃ©stamos, arriendo, cuotas')}
+      ${item('cierre-mensual','ðŸ“…','Cierre Mensual','P&G del mes, comparativo')}
+      ${item('mantenimiento','ðŸ”§','Mantenimiento','Alertas por kilometraje')}
+      ${item('reportes','ðŸ“Š','Reportes','Desgloses y grÃ¡ficos')}
+      ${item('config','âš™ï¸','ConfiguraciÃ³n','CategorÃ­as, PIN, exportar')}
+      ${item('sync','ðŸ”„','SincronizaciÃ³n','Google Sheets, automÃ¡tico')}
     </div>
   `;
 }
@@ -3188,7 +3209,7 @@ function renderMas(){
 /* ============================================================
    RESPALDO EN LA NUBE (GOOGLE SHEETS, MANUAL)
    ------------------------------------------------------------
-   Modelo deliberadamente simple: este teléfono SIEMPRE manda la
+   Modelo deliberadamente simple: este telÃ©fono SIEMPRE manda la
    Guarda local primero y sincroniza con Google Sheets en segundo plano.
    El servidor decide por updatedAt y conserva eliminaciones para evitar
    que registros borrados reaparezcan en otro dispositivo.
@@ -3210,7 +3231,7 @@ function updateSyncPill(){
   if (syncBusy || autoSyncInFlight){
     cls += ' busy'; label = 'Sincronizando...';
   } else if (navigator.onLine === false || autoSyncQueued || pending > 0){
-    cls += ' warn'; label = pending > 0 ? 'Pendiente de subir' : 'Sin conexión';
+    cls += ' warn'; label = pending > 0 ? 'Pendiente de subir' : 'Sin conexiÃ³n';
   } else if (DB.meta.lastSyncStatus === 'ok'){
     cls += ' ok'; label = 'Sincronizado';
   } else if (DB.meta.lastSyncStatus === 'error'){
@@ -3328,7 +3349,7 @@ async function autoSyncNow(reason){
     syncApplying = true;
     const cloudState = applyCloudState(json);
     SYNC_TABLES.forEach(k=>{ DB.pendingDeletes[k] = []; });
-    markSyncResult('ok', reason==='startup' ? 'Sincronización automática al abrir' : 'Sincronización automática');
+    markSyncResult('ok', reason==='startup' ? 'SincronizaciÃ³n automÃ¡tica al abrir' : 'SincronizaciÃ³n automÃ¡tica');
     saveDB();
     syncApplying = false;
     updateSyncPill();
@@ -3338,7 +3359,7 @@ async function autoSyncNow(reason){
     } else if (cloudState.changed || STATE.view==='sync') render();
   } catch(e){
     syncApplying = true;
-    markSyncResult('error', (e && e.message) || 'Error de conexión');
+    markSyncResult('error', (e && e.message) || 'Error de conexiÃ³n');
     saveDB();
     syncApplying = false;
     autoSyncQueued = true;
@@ -3367,17 +3388,17 @@ async function pushSync(){
     const json = await res.json();
     if (!json || json.ok!==true) throw new Error((json && json.error) || 'Respuesta inesperada del servidor');
     const cloudState = applyCloudState(json);
-    // El servidor ya aplicó los borrados: limpiamos la lista local de pendientes.
-    // Si esto fallara antes de llegar aquí, los pendientes quedan intactos para reintentar.
+    // El servidor ya aplicÃ³ los borrados: limpiamos la lista local de pendientes.
+    // Si esto fallara antes de llegar aquÃ­, los pendientes quedan intactos para reintentar.
     SYNC_TABLES.forEach(k=>{ DB.pendingDeletes[k] = []; });
     markSyncResult('ok', 'Sincronizado: ' + Object.entries(json.counts||{}).map(([k,v])=>`${k} ${v}`).join(', '));
     if (cloudState.pinChanged){
       pinUnlocked = false;
       checkLock();
     }
-    showToast('Sincronización completada');
+    showToast('SincronizaciÃ³n completada');
   } catch(e){
-    markSyncResult('error', (e && e.message) || 'Error de conexión');
+    markSyncResult('error', (e && e.message) || 'Error de conexiÃ³n');
     showToast('No se pudo sincronizar: '+DB.meta.lastSyncMessage);
   }
   syncApplying = true;
@@ -3393,7 +3414,7 @@ async function pullSync(){
     SYNC_TABLES.forEach(k=>{
       if (Array.isArray(json.tables && json.tables[k])){
         let incoming = json.tables[k];
-        // Protección: si hay borrados locales que aún no se han enviado, no dejamos que
+        // ProtecciÃ³n: si hay borrados locales que aÃºn no se han enviado, no dejamos que
         // un pull los "resucite" por accidente.
         const pending = normalizeDeletesForSync((DB.pendingDeletes && DB.pendingDeletes[k]) || []).map(x=>x.id);
         if (pending.length) incoming = incoming.filter(rec=>!pending.includes(rec.id));
@@ -3413,7 +3434,7 @@ async function pullSync(){
     }
     showToast('Datos restaurados desde la nube');
   } catch(e){
-    markSyncResult('error', (e && e.message) || 'Error de conexión');
+    markSyncResult('error', (e && e.message) || 'Error de conexiÃ³n');
     showToast('No se pudo restaurar: '+DB.meta.lastSyncMessage);
   }
   syncApplying = true;
@@ -3421,7 +3442,7 @@ async function pullSync(){
   syncApplying = false;
 }
 async function doSyncPush(){
-  if (!syncConfigured()){ showToast('La sincronización no está configurada en el código'); return; }
+  if (!syncConfigured()){ showToast('La sincronizaciÃ³n no estÃ¡ configurada en el cÃ³digo'); return; }
   syncBusy = true; render();
   await pushSync();
   syncBusy = false; render();
@@ -3432,34 +3453,34 @@ async function doSyncPull(){
   syncBusy = false; render();
 }
 function confirmSyncPull(){
-  if (!syncConfigured()){ showToast('La sincronización no está configurada en el código'); return; }
-  openModal('¿Restaurar desde la nube?', `
+  if (!syncConfigured()){ showToast('La sincronizaciÃ³n no estÃ¡ configurada en el cÃ³digo'); return; }
+  openModal('Â¿Restaurar desde la nube?', `
     <p style="font-size:13.5px;color:var(--text-dim);line-height:1.5;">
       Esto va a <b>borrar y reemplazar</b> los viajes, gastos, productores, traspasos, deudas y
-      mantenimiento guardados en este teléfono con lo que haya en la nube.
+      mantenimiento guardados en este telÃ©fono con lo que haya en la nube.
     </p>
     <p style="font-size:13.5px;color:var(--text-dim);line-height:1.5;margin-top:8px;">
-      Úsalo solo cuando configures un teléfono nuevo. Tu PIN no se toca; los ajustes operativos sí se restauran.
+      Ãšsalo solo cuando configures un telÃ©fono nuevo. Tu PIN no se toca; los ajustes operativos sÃ­ se restauran.
     </p>
   `, `<button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
-      <button class="btn btn-danger" data-action="do-sync-pull">Sí, reemplazar todo</button>`);
+      <button class="btn btn-danger" data-action="do-sync-pull">SÃ­, reemplazar todo</button>`);
 }
 
 function renderSync(){
   const configured = syncConfigured();
-  const statusLine = DB.meta.lastSyncStatus==='ok' ? '✅ Última vez correcto'
-    : DB.meta.lastSyncStatus==='error' ? '⚠️ El último intento falló'
-    : 'Todavía no se ha sincronizado';
+  const statusLine = DB.meta.lastSyncStatus==='ok' ? 'âœ… Ãšltima vez correcto'
+    : DB.meta.lastSyncStatus==='error' ? 'âš ï¸ El Ãºltimo intento fallÃ³'
+    : 'TodavÃ­a no se ha sincronizado';
   const pendDel = SYNC_TABLES.reduce((s,k)=>s+((DB.pendingDeletes&&DB.pendingDeletes[k])||[]).length,0);
   return `
-    <div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">‹</button><h3>Sincronización</h3></div>
+    <div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">â€¹</button><h3>SincronizaciÃ³n</h3></div>
 
     <div class="card">
       <p style="font-size:13px;color:var(--text-dim);line-height:1.5;margin:0 0 12px;">
-        La app guarda en este teléfono y sincroniza automáticamente con Google Sheets cuando abres,
-        editas o vuelve la conexión.
+        La app guarda en este telÃ©fono y sincroniza automÃ¡ticamente con Google Sheets cuando abres,
+        editas o vuelve la conexiÃ³n.
       </p>
-      <div class="alert ok"><span class="a-icon">●</span><span>La conexión con Google Sheets ya está configurada dentro del código.</span></div>
+      <div class="alert ok"><span class="a-icon">â—</span><span>La conexiÃ³n con Google Sheets ya estÃ¡ configurada dentro del cÃ³digo.</span></div>
     </div>
 
     <div class="card">
@@ -3467,29 +3488,29 @@ function renderSync(){
       <div class="row" style="margin-bottom:12px;">
         <div class="r-main">
           <div class="r-title">${statusLine}</div>
-          <div class="r-sub">${fmtSyncDate(DB.meta.lastSyncAt)}${DB.meta.lastSyncMessage?(' · '+DB.meta.lastSyncMessage):''}</div>
+          <div class="r-sub">${fmtSyncDate(DB.meta.lastSyncAt)}${DB.meta.lastSyncMessage?(' Â· '+DB.meta.lastSyncMessage):''}</div>
         </div>
       </div>
-      ${pendDel>0?`<div class="alert warn"><span class="a-icon">●</span><span><b>${pendDel} eliminación(es)</b> pendientes. Se subirán automáticamente cuando haya conexión.</span></div>`:''}
-      <button class="btn btn-primary" data-action="do-sync-push" ${(!configured||syncBusy)?'disabled':''}>${syncBusy?'Sincronizando…':'Sincronizar ahora'}</button>
+      ${pendDel>0?`<div class="alert warn"><span class="a-icon">â—</span><span><b>${pendDel} eliminaciÃ³n(es)</b> pendientes. Se subirÃ¡n automÃ¡ticamente cuando haya conexiÃ³n.</span></div>`:''}
+      <button class="btn btn-primary" data-action="do-sync-push" ${(!configured||syncBusy)?'disabled':''}>${syncBusy?'Sincronizandoâ€¦':'Sincronizar ahora'}</button>
     </div>
 
     <div class="card">
-      <div class="section-label">Restaurar (teléfono nuevo)</div>
+      <div class="section-label">Restaurar (telÃ©fono nuevo)</div>
       <p style="font-size:12.5px;color:var(--text-dim);line-height:1.5;margin:0 0 10px;">
-        Solo si este teléfono está vacío y quieres traer lo que ya respaldaste antes.
-        <b>Esto reemplaza</b> lo que haya aquí.
+        Solo si este telÃ©fono estÃ¡ vacÃ­o y quieres traer lo que ya respaldaste antes.
+        <b>Esto reemplaza</b> lo que haya aquÃ­.
       </p>
-      <button class="btn btn-danger" data-action="confirm-sync-pull" ${(!configured||syncBusy)?'disabled':''}>${syncBusy?'Restaurando…':'⬇ Restaurar desde la nube'}</button>
+      <button class="btn btn-danger" data-action="confirm-sync-pull" ${(!configured||syncBusy)?'disabled':''}>${syncBusy?'Restaurandoâ€¦':'â¬‡ Restaurar desde la nube'}</button>
     </div>
   `;
 }
 
 /* ============================================================
-   MANEJADOR GLOBAL DE ACCIONES (delegación de eventos)
+   MANEJADOR GLOBAL DE ACCIONES (delegaciÃ³n de eventos)
    Un solo punto de entrada para todos los clics de la app.
-   Si necesitas añadir un botón nuevo: ponle data-action="..."
-   en el HTML y agrega un caso aquí. No hace falta wiring aparte.
+   Si necesitas aÃ±adir un botÃ³n nuevo: ponle data-action="..."
+   en el HTML y agrega un caso aquÃ­. No hace falta wiring aparte.
    ============================================================ */
 function handleAction(action, el, ev){
   const id = el.dataset.id;
@@ -3514,7 +3535,10 @@ function handleAction(action, el, ev){
 
     // Caja
     case 'new-transfer': openTransferForm(); break;
+    case 'edit-transfer': openTransferForm(id); break;
     case 'save-transfer': saveTransferFromForm(); break;
+    case 'delete-transfer': confirmDeleteTransfer(id); break;
+    case 'do-delete-transfer': deleteTransfer(id); break;
     case 'new-comision': openComisionForm(); break;
 
     // Productores
@@ -3548,7 +3572,7 @@ function handleAction(action, el, ev){
     case 'cierre-prev': shiftCierreMes(-1); break;
     case 'cierre-next': shiftCierreMes(1); break;
 
-    // Configuración
+    // ConfiguraciÃ³n
     case 'cat-add': catAdd(el.dataset.cat); break;
     case 'cat-delete': catDelete(el.dataset.cat, el.dataset.value); break;
     case 'toggle-expense-grupo': toggleExpenseGrupo(el.dataset.value); break;
@@ -3564,7 +3588,7 @@ function handleAction(action, el, ev){
     case 'confirm-sync-pull': confirmSyncPull(); break;
     case 'do-sync-pull': closeModal(); doSyncPull(); break;
 
-    // Más / navegación
+    // MÃ¡s / navegaciÃ³n
     case 'goto': setView(el.dataset.view); break;
     case 'go-back': setView(el.dataset.back || 'mas'); break;
 
@@ -3588,3 +3612,4 @@ document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
+
