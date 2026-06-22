@@ -471,7 +471,7 @@ a{color:var(--yellow);}
 <div id="lockScreen" class="lock-screen hidden">
   <div class="brand-name">SANVI</div>
   <div class="brand-tag" style="margin-bottom:8px;">EL CUADRE</div>
-  <div class="field-hint">Ingresa tu PIN</div>
+  <div class="field-hint" id="pinHint">Ingresa tu PIN</div>
   <div class="pin-dots" id="pinDots"></div>
   <div class="pin-error" id="pinError"></div>
   <div class="pinpad" id="pinPad"></div>
@@ -667,6 +667,12 @@ function uuid(){
 }
 
 function nowISO(){ return new Date().toISOString(); }
+function touchSettings(){
+  if (DB && DB.meta) DB.meta.settingsUpdatedAt = nowISO();
+}
+function touchCategories(){
+  if (DB && DB.meta) DB.meta.categoriesUpdatedAt = nowISO();
+}
 function markPendingDelete(tableName, id){
   if (!DB.pendingDeletes) DB.pendingDeletes = {};
   if (!Array.isArray(DB.pendingDeletes[tableName])) DB.pendingDeletes[tableName] = [];
@@ -685,6 +691,8 @@ function defaultDB(){
       diasAlertaCarguero: 5,
       capacidadTanqueGalones: 200,
       thresholdEndeudamientoPct: 60,
+      settingsUpdatedAt: null,
+      categoriesUpdatedAt: null,
       lastSyncAt: null,
       lastSyncStatus: null, // 'ok' | 'error' | null
       lastSyncMessage: '',
@@ -713,6 +721,7 @@ function fillDefaults(db){
   db.pendingDeletes = Object.assign({}, def.pendingDeletes, db.pendingDeletes||{});
   Object.keys(def.pendingDeletes).forEach(k=>{ if (!Array.isArray(db.pendingDeletes[k])) db.pendingDeletes[k] = []; });
   db.categories = Object.assign({}, def.categories, db.categories||{});
+  if (db.meta.pin && !db.meta.settingsUpdatedAt) db.meta.settingsUpdatedAt = nowISO();
   // Migración: categorías de gasto guardadas antes de la v2 no tienen 'tipo' (COSTO/EGRESO).
   if (Array.isArray(db.categories.expenseCategory)){
     db.categories.expenseCategory.forEach(c=>{
@@ -881,11 +890,13 @@ function addCactusCategory(catKey, value){
   if (catKey==='expenseCategory'){
     if (!list.find(c=>c.nombre.toLowerCase()===value.toLowerCase())){
       list.push({nombre:value, grupo:'personal', tipo:'egreso'});
+      touchCategories();
       saveDB();
     }
   } else {
     if (!list.find(c=>c.toLowerCase()===value.toLowerCase())){
       list.push(value);
+      touchCategories();
       saveDB();
     }
   }
@@ -1135,11 +1146,12 @@ function pinBruteSuccess(){
 let pinFirstEntry = '';
 let pinBusy = false; // evita que toques rápidos se pierdan durante la transición create→confirm
 let pinBuffer = '';
-let pinMode = 'unlock'; // 'unlock' | 'create' | 'confirm' | 'remove'
+let pinMode = 'unlock'; // 'unlock' | 'change-current' | 'create' | 'confirm' | 'remove'
+let pinUnlocked = false;
 pinBruteLoad();
 
 function checkLock(){
-  if (DB.meta.pin){
+  if (DB.meta.pin && !pinUnlocked){
     pinMode = 'unlock'; pinBuffer = '';
     document.getElementById('lockScreen').classList.remove('hidden');
     document.getElementById('app').classList.add('hidden');
@@ -1152,6 +1164,15 @@ function checkLock(){
   }
 }
 
+function pinPromptText(){
+  if (pinMode === 'unlock') return 'Ingresa tu PIN';
+  if (pinMode === 'change-current') return 'PIN actual para cambiarlo';
+  if (pinMode === 'create') return DB.meta.pin ? 'Nuevo PIN' : 'Crea un PIN';
+  if (pinMode === 'confirm') return 'Confirma el nuevo PIN';
+  if (pinMode === 'remove') return 'PIN actual para quitarlo';
+  return 'Ingresa tu PIN';
+}
+
 function renderPinPad(){
   const pad = document.getElementById('pinPad');
   const keys = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
@@ -1160,6 +1181,8 @@ function renderPinPad(){
     if (k==='⌫') return `<button data-action="pin-back">⌫</button>`;
     return `<button data-action="pin-digit" data-digit="${k}">${k}</button>`;
   }).join('');
+  const hint = document.getElementById('pinHint');
+  if (hint) hint.textContent = pinPromptText();
   renderPinDots();
   document.getElementById('pinError').textContent = '';
 }
@@ -1189,6 +1212,7 @@ function pinBack(){ if (pinBusy) return; pinBuffer = pinBuffer.slice(0,-1); rend
 function processPinEntry(){
   if (pinMode==='unlock'){
     if (pinBuffer === DB.meta.pin){
+      pinUnlocked = true;
       pinBruteSuccess();
       document.getElementById('lockScreen').classList.add('hidden');
       document.getElementById('app').classList.remove('hidden');
@@ -1205,6 +1229,18 @@ function processPinEntry(){
       }
       pinBuffer=''; renderPinDots();
     }
+  } else if (pinMode==='change-current'){
+    if (pinBuffer === DB.meta.pin){
+      pinBruteSuccess();
+      pinBuffer=''; pinFirstEntry=''; pinMode='create';
+      document.getElementById('pinError').textContent='';
+      renderPinPad();
+    } else {
+      pinBruteFailure();
+      const wait = pinBruteCheck();
+      document.getElementById('pinError').textContent = wait > 0 ? `Demasiados intentos. Bloqueado ${wait}s` : 'PIN actual incorrecto';
+      pinBuffer=''; renderPinDots();
+    }
   } else if (pinMode==='create'){
     pinFirstEntry = pinBuffer;
     pinBuffer=''; pinMode='confirm';
@@ -1212,7 +1248,10 @@ function processPinEntry(){
     renderPinDots();
   } else if (pinMode==='confirm'){
     if (pinBuffer === pinFirstEntry){
-      DB.meta.pin = pinBuffer; saveDB();
+      DB.meta.pin = pinBuffer;
+      pinUnlocked = true;
+      touchSettings();
+      saveDB();
       document.getElementById('lockScreen').classList.add('hidden');
       document.getElementById('app').classList.remove('hidden');
       showToast('PIN configurado');
@@ -1223,7 +1262,10 @@ function processPinEntry(){
     }
   } else if (pinMode==='remove'){
     if (pinBuffer === DB.meta.pin){
-      DB.meta.pin = null; saveDB();
+      DB.meta.pin = null;
+      pinUnlocked = true;
+      touchSettings();
+      saveDB();
       document.getElementById('lockScreen').classList.add('hidden');
       document.getElementById('app').classList.remove('hidden');
       showToast('PIN desactivado');
@@ -1235,7 +1277,8 @@ function processPinEntry(){
   }
 }
 function openSetPin(){
-  pinMode='create'; pinBuffer=''; pinFirstEntry='';
+  pinMode = DB.meta.pin ? 'change-current' : 'create';
+  pinBuffer=''; pinFirstEntry='';
   document.getElementById('lockScreen').classList.remove('hidden');
   document.getElementById('app').classList.add('hidden');
   renderPinPad();
@@ -3003,18 +3046,21 @@ function catAdd(catKey){
 function catDelete(catKey, value){
   if (catKey==='expenseCategory') DB.categories.expenseCategory = DB.categories.expenseCategory.filter(c=>c.nombre!==value);
   else DB.categories[catKey] = DB.categories[catKey].filter(v=>v!==value);
+  touchCategories();
   saveDB(); render();
 }
 function toggleExpenseGrupo(nombre){
   const c = getExpenseCategory(nombre);
   if (!c) return;
   c.grupo = c.grupo==='camion' ? 'personal' : 'camion';
+  touchCategories();
   saveDB(); render();
 }
 function toggleExpenseTipo(nombre){
   const c = getExpenseCategory(nombre);
   if (!c) return;
   c.tipo = (c.tipo||'egreso')==='costo' ? 'egreso' : 'costo';
+  touchCategories();
   saveDB(); render();
 }
 
@@ -3109,6 +3155,7 @@ function saveAlertSettings(){
   DB.meta.diasAlertaCarguero = Number(document.getElementById('cfgDiasAlertaCarguero').value)||5;
   DB.meta.capacidadTanqueGalones = Number(document.getElementById('cfgCapacidadTanque').value)||200;
   DB.meta.thresholdEndeudamientoPct = Number(document.getElementById('cfgThreshold').value)||60;
+  touchSettings();
   saveDB(); showToast('Configuración guardada'); render();
 }
 
@@ -3182,16 +3229,18 @@ function fmtSyncDate(iso){
   return d.toLocaleString('es-EC', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
 }
 function syncableMeta(){
-  const keys = ['empresaNombre','diasMoraAlerta','diasPlazoCobro','diasAlertaCarguero','capacidadTanqueGalones','thresholdEndeudamientoPct'];
+  const keys = ['empresaNombre','pin','diasMoraAlerta','diasPlazoCobro','diasAlertaCarguero','capacidadTanqueGalones','thresholdEndeudamientoPct','settingsUpdatedAt'];
   const data = {};
   keys.forEach(k=>{ data[k] = DB.meta[k]; });
   return data;
 }
 function applySyncedMeta(data){
-  if (!data || typeof data !== 'object') return;
-  ['empresaNombre','diasMoraAlerta','diasPlazoCobro','diasAlertaCarguero','capacidadTanqueGalones','thresholdEndeudamientoPct'].forEach(k=>{
+  if (!data || typeof data !== 'object') return false;
+  const oldPin = DB.meta.pin || null;
+  ['empresaNombre','pin','diasMoraAlerta','diasPlazoCobro','diasAlertaCarguero','capacidadTanqueGalones','thresholdEndeudamientoPct','settingsUpdatedAt'].forEach(k=>{
     if (data[k] !== undefined && data[k] !== null) DB.meta[k] = data[k];
   });
+  return (oldPin || null) !== (DB.meta.pin || null);
 }
 function asTime(iso){
   const t = Date.parse(iso || '');
@@ -3206,8 +3255,9 @@ function normalizeDeletesForSync(list){
 function buildSyncPayload(action){
   const tables = {};
   SYNC_TABLES.forEach(k=>{ tables[k] = DB[k]; });
-  tables.categories = [{ id:'categories_singleton', updatedAt: nowISO(), data: DB.categories }];
-  tables.settings = [{ id:'settings_singleton', updatedAt: nowISO(), data: syncableMeta() }];
+  const fallbackTs = '1970-01-01T00:00:00.000Z';
+  tables.categories = [{ id:'categories_singleton', updatedAt: DB.meta.categoriesUpdatedAt || fallbackTs, data: DB.categories }];
+  tables.settings = [{ id:'settings_singleton', updatedAt: DB.meta.settingsUpdatedAt || fallbackTs, data: syncableMeta() }];
   const deletes = {};
   SYNC_TABLES.forEach(k=>{ deletes[k] = normalizeDeletesForSync(DB.pendingDeletes && DB.pendingDeletes[k]); });
   return { token: SYNC_TOKEN, action, tables, deletes };
@@ -3239,8 +3289,9 @@ function mergeRecordTable(tableName, incoming, cloudDeletes){
   return changed;
 }
 function applyCloudState(json){
-  if (!json || !json.tables) return false;
+  if (!json || !json.tables) return { changed:false, pinChanged:false };
   let changed = false;
+  let pinChanged = false;
   SYNC_TABLES.forEach(k=>{
     changed = mergeRecordTable(k, json.tables[k], json.deletes && json.deletes[k]) || changed;
   });
@@ -3249,10 +3300,10 @@ function applyCloudState(json){
     changed = true;
   }
   if (Array.isArray(json.tables.settings) && json.tables.settings[0] && json.tables.settings[0].data){
-    applySyncedMeta(json.tables.settings[0].data);
+    pinChanged = applySyncedMeta(json.tables.settings[0].data) || pinChanged;
     changed = true;
   }
-  return changed;
+  return { changed, pinChanged };
 }
 function markSyncResult(status, message){
   DB.meta.lastSyncAt = nowISO();
@@ -3275,13 +3326,16 @@ async function autoSyncNow(reason){
     const json = await res.json();
     if (!json || json.ok!==true) throw new Error((json && json.error) || 'Respuesta inesperada del servidor');
     syncApplying = true;
-    const changed = applyCloudState(json);
+    const cloudState = applyCloudState(json);
     SYNC_TABLES.forEach(k=>{ DB.pendingDeletes[k] = []; });
     markSyncResult('ok', reason==='startup' ? 'Sincronización automática al abrir' : 'Sincronización automática');
     saveDB();
     syncApplying = false;
     updateSyncPill();
-    if (changed || STATE.view==='sync') render();
+    if (cloudState.pinChanged){
+      pinUnlocked = false;
+      checkLock();
+    } else if (cloudState.changed || STATE.view==='sync') render();
   } catch(e){
     syncApplying = true;
     markSyncResult('error', (e && e.message) || 'Error de conexión');
@@ -3312,11 +3366,15 @@ async function pushSync(){
     const res = await fetch(SYNC_URL, { method:'POST', body: JSON.stringify(buildSyncPayload('sync')) });
     const json = await res.json();
     if (!json || json.ok!==true) throw new Error((json && json.error) || 'Respuesta inesperada del servidor');
-    applyCloudState(json);
+    const cloudState = applyCloudState(json);
     // El servidor ya aplicó los borrados: limpiamos la lista local de pendientes.
     // Si esto fallara antes de llegar aquí, los pendientes quedan intactos para reintentar.
     SYNC_TABLES.forEach(k=>{ DB.pendingDeletes[k] = []; });
     markSyncResult('ok', 'Sincronizado: ' + Object.entries(json.counts||{}).map(([k,v])=>`${k} ${v}`).join(', '));
+    if (cloudState.pinChanged){
+      pinUnlocked = false;
+      checkLock();
+    }
     showToast('Sincronización completada');
   } catch(e){
     markSyncResult('error', (e && e.message) || 'Error de conexión');
@@ -3327,6 +3385,7 @@ async function pushSync(){
   syncApplying = false;
 }
 async function pullSync(){
+  let pinChanged = false;
   try{
     const res = await fetch(SYNC_URL, { method:'POST', body: JSON.stringify({ token: SYNC_TOKEN, action:'pull' }) });
     const json = await res.json();
@@ -3345,9 +3404,13 @@ async function pullSync(){
       DB.categories = json.tables.categories[0].data;
     }
     if (json.tables && Array.isArray(json.tables.settings) && json.tables.settings[0] && json.tables.settings[0].data){
-      applySyncedMeta(json.tables.settings[0].data);
+      pinChanged = applySyncedMeta(json.tables.settings[0].data) || pinChanged;
     }
     markSyncResult('ok', 'Restaurado desde la nube');
+    if (pinChanged){
+      pinUnlocked = false;
+      checkLock();
+    }
     showToast('Datos restaurados desde la nube');
   } catch(e){
     markSyncResult('error', (e && e.message) || 'Error de conexión');
