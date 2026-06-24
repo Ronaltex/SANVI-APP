@@ -1,10 +1,10 @@
-const CACHE_NAME = "sanvi-app-v1";
+const CACHE_NAME = "sanvi-app-v2-20260623";
 const APP_SHELL = [
   "./",
-  "./index.html",
-  "./manifest.webmanifest",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png"
+  "./index.html?v=20260623-2",
+  "./manifest.webmanifest?v=20260623-2",
+  "./icons/icon-192.png?v=20260623-2",
+  "./icons/icon-512.png?v=20260623-2"
 ];
 
 self.addEventListener("install", event => {
@@ -13,6 +13,11 @@ self.addEventListener("install", event => {
 
 self.addEventListener("activate", event => {
   event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)))).then(() => self.clients.claim()));
+});
+
+self.addEventListener("message", event => {
+  if (!event.data || event.data.type !== "CLEAR_CACHE") return;
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.map(key => caches.delete(key)))));
 });
 
 self.addEventListener("fetch", event => {

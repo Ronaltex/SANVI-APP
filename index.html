@@ -7,8 +7,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="SANVI">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest?v=20260623-2">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=20260623-2">
 <title>SANVI — El Cuadre, Camión &amp; Casa</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -3603,6 +3603,7 @@ function renderSync(){
       </div>
       ${pendDel>0?`<div class="alert warn"><span class="a-icon">●</span><span><b>${pendDel} eliminación(es)</b> pendientes. Se subirán automáticamente cuando haya conexión.</span></div>`:''}
       <button class="btn btn-primary" data-action="do-sync-push" ${(!configured||syncBusy)?'disabled':''}>${syncBusy?'Sincronizando…':'Sincronizar ahora'}</button>
+      <button class="btn btn-secondary" data-action="clear-app-cache" style="margin-top:8px;">Actualizar app / borrar caché</button>
     </div>
 
     <div class="card">
@@ -3614,6 +3615,23 @@ function renderSync(){
       <button class="btn btn-danger" data-action="confirm-sync-pull" ${(!configured||syncBusy)?'disabled':''}>${syncBusy?'Restaurando…':'⬇ Restaurar desde la nube'}</button>
     </div>
   `;
+}
+
+async function clearAppCache(){
+  try{
+    if ('serviceWorker' in navigator){
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(reg=>reg.unregister()));
+    }
+    if (window.caches){
+      const keys = await caches.keys();
+      await Promise.all(keys.map(key=>caches.delete(key)));
+    }
+    showToast('Caché borrado. Recargando...');
+    setTimeout(()=>location.reload(), 700);
+  } catch(e){
+    showToast('No se pudo borrar caché');
+  }
 }
 
 /* ============================================================
@@ -3697,6 +3715,7 @@ function handleAction(action, el, ev){
     case 'do-sync-push': doSyncPush(); break;
     case 'confirm-sync-pull': confirmSyncPull(); break;
     case 'do-sync-pull': closeModal(); doSyncPull(); break;
+    case 'clear-app-cache': clearAppCache(); break;
 
     // Más / navegación
     case 'goto': setView(el.dataset.view); break;
@@ -3721,7 +3740,7 @@ document.addEventListener('click', function(ev){
 document.addEventListener('DOMContentLoaded', init);
 if ('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+    navigator.serviceWorker.register('./service-worker.js?v=20260623-2').catch(()=>{});
   });
 }
 </script>
