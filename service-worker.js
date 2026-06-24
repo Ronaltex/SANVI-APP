@@ -1,10 +1,10 @@
-const CACHE_NAME = "sanvi-app-v2-20260623";
+const CACHE_NAME = "sanvi-app-v3-20260623";
 const APP_SHELL = [
   "./",
-  "./index.html?v=20260623-2",
-  "./manifest.webmanifest?v=20260623-2",
-  "./icons/icon-192.png?v=20260623-2",
-  "./icons/icon-512.png?v=20260623-2"
+  "./index.html?v=20260623-3",
+  "./manifest.webmanifest?v=20260623-3",
+  "./icon-192.png?v=20260623-3",
+  "./icon-512.png?v=20260623-3"
 ];
 
 self.addEventListener("install", event => {
