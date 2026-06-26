@@ -712,6 +712,9 @@ function defaultDB(){
     },
     trips: [],
     expenses: [],
+    incomes: [],
+    receivables: [],
+    rotatingFunds: [],
     producers: [],
     transfers: [],
     commitments: [],   // deudas (con saldo) y fijos recurrentes (arriendo, etc.)
@@ -720,7 +723,7 @@ function defaultDB(){
     // IDs borrados en este teléfono que todavía no se han reflejado (borrado) en la nube.
     // Sin esto, un registro eliminado localmente "resucita" la próxima vez que se restaura
     // desde la nube, porque el respaldo solo sabe agregar/actualizar filas, no borrarlas.
-    pendingDeletes: { trips:[], expenses:[], producers:[], transfers:[], commitments:[], maintenance:[] },
+    pendingDeletes: { trips:[], expenses:[], incomes:[], receivables:[], rotatingFunds:[], producers:[], transfers:[], commitments:[], maintenance:[] },
   };
 }
 // Si la base ya existía antes de añadir un campo nuevo (ej. sincronización),
@@ -728,7 +731,7 @@ function defaultDB(){
 function fillDefaults(db){
   const def = defaultDB();
   db.meta = Object.assign({}, def.meta, db.meta||{});
-  ['trips','expenses','producers','transfers','commitments','maintenance'].forEach(k=>{
+  ['trips','expenses','incomes','receivables','rotatingFunds','producers','transfers','commitments','maintenance'].forEach(k=>{
     if (!Array.isArray(db[k])) db[k] = [];
   });
   db.pendingDeletes = Object.assign({}, def.pendingDeletes, db.pendingDeletes||{});
@@ -1049,6 +1052,22 @@ function computeBalances(){
     if (e.metodoPago==='Transferencia' || e.metodoPago==='Tarjeta') banco -= e.monto;
     else efectivo -= e.monto;
   }
+  for (const inc of (DB.incomes||[])){
+    if (inc.metodo==='Transferencia' || inc.metodo==='Tarjeta') banco += inc.monto;
+    else efectivo += inc.monto;
+  }
+  for (const r of (DB.receivables||[])){
+    if (r.metodoEntrega==='Transferencia' || r.metodoEntrega==='Tarjeta') banco -= r.monto;
+    else efectivo -= r.monto;
+    (r.pagos||[]).forEach(pay=>{
+      if (pay.metodo==='Transferencia' || pay.metodo==='Tarjeta') banco += pay.monto;
+      else efectivo += pay.monto;
+    });
+  }
+  for (const f of (DB.rotatingFunds||[])){
+    (f.aportes||[]).forEach(a=>{ if (a.metodo==='Transferencia' || a.metodo==='Tarjeta') banco -= a.monto; else efectivo -= a.monto; });
+    (f.cobros||[]).forEach(c=>{ if (c.metodo==='Transferencia' || c.metodo==='Tarjeta') banco += c.monto; else efectivo += c.monto; });
+  }
   for (const tr of DB.transfers){
     if (tr.direccion==='efectivo_a_banco'){ efectivo -= tr.monto; banco += tr.monto; }
     else { banco -= tr.monto; efectivo += tr.monto; }
@@ -1060,7 +1079,7 @@ function computeBalances(){
 function setView(view, subview){
   STATE.view = view;
   STATE.subview = subview || null;
-  const masViews = ['mas','productores','productor-detalle','cuentas-por-cobrar','cargueros','deudas','mantenimiento','reportes','config','sync','cierre-mensual'];
+  const masViews = ['mas','productores','productor-detalle','cuentas-por-cobrar','cargueros','ingresos-extra','cuentas-personales','ruedas','deudas','mantenimiento','reportes','config','sync','cierre-mensual'];
   document.querySelectorAll('.nav-item').forEach(b=>{
     b.classList.toggle('active', b.dataset.view === (masViews.includes(view) ? 'mas' : view));
   });
@@ -1083,6 +1102,9 @@ function render(){
     case 'productor-detalle': c.innerHTML = renderProductorDetalle(STATE.subview); break;
     case 'cuentas-por-cobrar': c.innerHTML = renderCuentasPorCobrar(); break;
     case 'cargueros': c.innerHTML = renderCargueros(); break;
+    case 'ingresos-extra': c.innerHTML = renderIngresosExtra(); break;
+    case 'cuentas-personales': c.innerHTML = renderCuentasPersonales(); break;
+    case 'ruedas': c.innerHTML = renderRuedas(); break;
     case 'deudas': c.innerHTML = renderDeudas(); break;
     case 'mantenimiento': c.innerHTML = renderMantenimiento(); break;
     case 'reportes': c.innerHTML = renderReportes(); afterRenderReportes(); break;
@@ -1562,6 +1584,17 @@ function wireSeg(id, onChange){
   }));
 }
 function wireTripFormInteractivity(t){
+  const applyCargueroMode = ()=>{
+    const active = (document.querySelector('#tCargueroSeg button.active')||{}).dataset?.val==='si';
+    ['tCostoDiesel','tCostoPeaje','tCostoComida','tCostoOtro','tKmIni','tKmFin'].forEach(id=>{
+      const el=document.getElementById(id);
+      if (el) el.disabled = active;
+    });
+    ['tFgSalida','tFgRegreso'].forEach(id=>{
+      const el=document.getElementById(id);
+      if (el) el.style.opacity = active ? '.35' : '1';
+    });
+  };
   wireSeg('tEstadoSeg', (b)=>{
     document.getElementById('tMetodoWrap').classList.toggle('hidden', b.dataset.val!=='cobrado');
   });
@@ -1572,6 +1605,7 @@ function wireTripFormInteractivity(t){
   });
   wireSeg('tCargueroSeg', (b)=>{
     document.getElementById('tCargueroWrap').classList.toggle('hidden', b.dataset.val!=='si');
+    applyCargueroMode();
     updateTripUtilidadPreview();
   });
   wireSeg('tCargueroPagadoSeg');
@@ -1585,6 +1619,7 @@ function wireTripFormInteractivity(t){
     document.getElementById(id).addEventListener('input', updateTripUtilidadPreview);
   });
   updateTripUtilidadPreview();
+  applyCargueroMode();
 }
 function updateTripSaldoPreview(){
   const v = Number(document.getElementById('tValor').value)||0;
@@ -1597,11 +1632,11 @@ function updateTripUtilidadPreview(){
   const v = Number(document.getElementById('tValor').value)||0;
   const d = Number(document.getElementById('tDescuento').value)||0;
   const serviciosTotal = tripFormServicios.reduce((s,x)=>s+(Number(x.valor)||0),0);
-  const costosRuta = (Number(document.getElementById('tCostoDiesel').value)||0)
+  const cargueroActivo = (document.querySelector('#tCargueroSeg button.active')||{}).dataset?.val==='si';
+  const costosRuta = cargueroActivo ? 0 : ((Number(document.getElementById('tCostoDiesel').value)||0)
     + (Number(document.getElementById('tCostoPeaje').value)||0)
     + (Number(document.getElementById('tCostoComida').value)||0)
-    + (Number(document.getElementById('tCostoOtro').value)||0);
-  const cargueroActivo = (document.querySelector('#tCargueroSeg button.active')||{}).dataset?.val==='si';
+    + (Number(document.getElementById('tCostoOtro').value)||0));
   const cargueroMonto = cargueroActivo ? (Number(document.getElementById('tCargueroMonto').value)||0) : 0;
   const facturaActiva = (document.querySelector('#tFacturaSeg button.active')||{}).dataset?.val==='si';
   const facturaPct = facturaActiva ? (Number(document.getElementById('tFacturaPct').value)||0) : 0;
@@ -1683,6 +1718,12 @@ function saveTripFromForm(){
     kmFinal: kmFinVal===''? null : Number(kmFinVal),
     nota: document.getElementById('tNota').value.trim(),
   };
+  if (carguero){
+    data.costosRuta = {diesel:0, peaje:0, comida:0, otro:0};
+    data.combustible = {salida:null, regreso:null};
+    data.kmInicial = null;
+    data.kmFinal = null;
+  }
 
   if (id){
     const t = existing;
@@ -1766,6 +1807,29 @@ function expenseCategoryOptionsHtml(selected){
 function payMethodOptionsHtml(selected){
   return PAY_METHODS.map(m=>`<option ${m===selected?'selected':''}>${m}</option>`).join('');
 }
+function lastKnownTankLevel(){
+  let latest = null;
+  const consider = (fecha, value)=>{
+    if (value===undefined || value===null || value==='') return;
+    const time = Date.parse(fecha || '');
+    if (!Number.isFinite(time)) return;
+    if (!latest || time >= latest.time) latest = { time, value:Number(value) };
+  };
+  (DB.trips||[]).forEach(t=>{
+    if (t.carguero && t.carguero.nombre) return;
+    if (t.combustible){
+      consider(t.fecha, t.combustible.salida);
+      consider(t.fecha, t.combustible.regreso);
+    }
+  });
+  (DB.expenses||[]).forEach(e=>{
+    if (e.categoria==='Combustible' && e.detalle){
+      consider(e.fecha, e.detalle.tankBefore);
+      consider(e.fecha, e.detalle.tankAfter);
+    }
+  });
+  return latest ? latest.value : 50;
+}
 function expenseDetailFieldsHtml(categoria, detalle){
   detalle = detalle || {};
   switch(categoria){
@@ -1773,7 +1837,13 @@ function expenseDetailFieldsHtml(categoria, detalle){
       return `
         <div class="field"><label>Gasolinera</label><input type="text" id="eDetGasolinera" list="gasStationList" value="${esc(detalle.gasolinera||'')}" placeholder="Nombre de la estación"></div>
         <datalist id="gasStationList">${DB.categories.gasStation.map(g=>`<option value="${esc(g)}">`).join('')}</datalist>
-        <div class="field"><label>Galones (para rendimiento)</label><input type="number" inputmode="decimal" id="eGalones" value="${detalle.galones||''}" placeholder="opcional"></div>`;
+        <div class="field"><label>Uso relacionado</label><select id="eDetFuelUse">${(DB.categories.fuelUseType||['Viaje','Otro']).map(x=>`<option ${x===(detalle.uso||'Viaje')?'selected':''}>${esc(x)}</option>`).join('')}</select></div>
+        <div class="field"><label>Galones (para rendimiento)</label><input type="number" inputmode="decimal" id="eGalones" value="${detalle.galones||''}" placeholder="opcional"></div>
+        <div class="fuel-gauge-row">
+          ${fuelGaugeHtml('eFgBefore','Tanque antes')}
+          ${fuelGaugeHtml('eFgAfter','Tanque después')}
+        </div>
+        <div class="field-hint">"Tanque antes" viene del ultimo registro conocido, pero puedes editarlo si usaste el camion entre dias.</div>`;
     case 'Peajes':
       return `
         <div class="field"><label>Zona / Peaje</label><input type="text" id="eDetZona" value="${esc(detalle.zona||'')}" placeholder="ej. Peaje Boliche"></div>
@@ -1841,6 +1911,16 @@ function wireExpenseSegments(){
     seg.querySelectorAll('button').forEach(x=>x.classList.remove('active'));
     b.classList.add('active');
   }));
+  const beforeGauge = document.getElementById('eFgBefore');
+  const afterGauge = document.getElementById('eFgAfter');
+  if (beforeGauge){
+    const current = beforeGauge.dataset.value ? Number(beforeGauge.dataset.value) : lastKnownTankLevel();
+    wireFuelGauge('eFgBefore', current);
+  }
+  if (afterGauge){
+    const current = afterGauge.dataset.value ? Number(afterGauge.dataset.value) : lastKnownTankLevel();
+    wireFuelGauge('eFgAfter', current);
+  }
 }
 function cactusAddCategory(){
   const input = document.getElementById('eCactusNueva');
@@ -1861,6 +1941,9 @@ function readExpenseDetalle(categoria){
     case 'Combustible':
       d.gasolinera = (document.getElementById('eDetGasolinera')||{}).value || '';
       if (d.gasolinera) addCactusCategory('gasStation', d.gasolinera);
+      d.uso = (document.getElementById('eDetFuelUse')||{}).value || 'Viaje';
+      d.tankBefore = Number((document.getElementById('eFgBefore')||{}).dataset?.value ?? lastKnownTankLevel());
+      d.tankAfter = Number((document.getElementById('eFgAfter')||{}).dataset?.value ?? d.tankBefore);
       break;
     case 'Peajes':
       d.zona = (document.getElementById('eDetZona')||{}).value || '';
@@ -2117,6 +2200,87 @@ function openComisionForm(){
     if (sel){ sel.value='Comisiones Bancarias'; document.getElementById('eDetalleFields').innerHTML = expenseDetailFieldsHtml('Comisiones Bancarias',{}); }
   }, 0);
 }
+
+
+/* ============================================================
+   OTROS INGRESOS, CUENTAS PERSONALES Y RUEDAS
+   ============================================================ */
+function methodIsBank(m){ return m==='Transferencia' || m==='Tarjeta'; }
+function incomeCategoryOptionsHtml(selected){ return (DB.categories.incomeCategory||[]).map(c=>`<option ${c===selected?'selected':''}>${esc(c)}</option>`).join(''); }
+function openIncomeForm(id){
+  const i = id ? DB.incomes.find(x=>x.id===id) : null;
+  const item = i || {fecha:todayISO(), categoria:(DB.categories.incomeCategory||['Otro'])[0], monto:'', metodo:'Transferencia', origen:'', nota:''};
+  openModal(i?'Editar ingreso':'Nuevo ingreso', `
+    <input type="hidden" id="incId" value="${item.id||''}">
+    ${i?`<button type="button" class="btn btn-danger btn-sm" data-action="delete-income" data-id="${i.id}" style="margin-bottom:12px;">Eliminar ingreso</button>`:''}
+    <div class="field"><label>Fecha</label><input type="date" id="incFecha" value="${item.fecha}"></div>
+    <div class="field"><label>Categoria</label><select id="incCategoria">${incomeCategoryOptionsHtml(item.categoria)}</select></div>
+    <div class="field"><label>Origen / persona</label><input type="text" id="incOrigen" value="${esc(item.origen||'')}" placeholder="ej. Familia Espana"></div>
+    <div class="field"><label>Monto recibido</label><input type="number" inputmode="decimal" id="incMonto" value="${item.monto||''}" placeholder="0.00"></div>
+    <div class="field"><label>Metodo</label><select id="incMetodo">${payMethodOptionsHtml(item.metodo||'Transferencia')}</select></div>
+    <div class="field"><label>Nota</label><input type="text" id="incNota" value="${esc(item.nota||'')}" placeholder="opcional"></div>
+  `, `<button class="btn btn-secondary" data-action="close-modal">Cancelar</button><button class="btn btn-primary" data-action="save-income">Guardar</button>`);
+}
+function saveIncomeFromForm(){
+  const id=document.getElementById('incId').value;
+  const monto=Number(document.getElementById('incMonto').value)||0;
+  if(monto<=0){ showToast('Ingresa el monto'); return; }
+  const fecha=document.getElementById('incFecha').value||todayISO();
+  const meta=dateMeta(fecha);
+  const data={fecha, anio:meta.anio, mes:meta.mes, semana:meta.semana, categoria:document.getElementById('incCategoria').value, origen:document.getElementById('incOrigen').value.trim(), monto, metodo:document.getElementById('incMetodo').value, nota:document.getElementById('incNota').value.trim()};
+  if(id){ const i=DB.incomes.find(x=>x.id===id); if(!i)return; Object.assign(i,data); i.updatedAt=nowISO(); }
+  else { data.id=uuid(); data.createdAt=nowISO(); data.updatedAt=nowISO(); DB.incomes.push(data); }
+  saveDB(); closeModal(); showToast(id?'Ingreso actualizado':'Ingreso registrado'); render();
+}
+function confirmDeleteIncome(id){ openModal('Eliminar ingreso', '<p>Seguro que quieres eliminar este ingreso?</p>', `<button class="btn btn-secondary" data-action="close-modal">Cancelar</button><button class="btn btn-danger" data-action="do-delete-income" data-id="${id}">Eliminar</button>`); }
+function deleteIncome(id){ markPendingDelete('incomes',id); DB.incomes=DB.incomes.filter(x=>x.id!==id); saveDB(); closeModal(); showToast('Ingreso eliminado'); render(); }
+function renderIngresosExtra(){
+  const items=(DB.incomes||[]).filter(inPeriod).sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const total=round2(items.reduce((s,i)=>s+i.monto,0));
+  return `<div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">&lsaquo;</button><h3>Otros ingresos</h3></div>
+    <div class="hero-card"><div class="hero-label">Ingresos no ligados a viajes</div><div class="hero-value pos">${fmtMoney(total)}</div><div class="hero-sub">Familia, cobros y entradas ocasionales</div></div>
+    ${items.length?`<div class="list">${items.map(i=>`<div class="row" data-action="edit-income" data-id="${i.id}"><div class="r-main"><div class="r-title">${esc(i.origen||i.categoria)}</div><div class="r-sub">${fmtDateShort(i.fecha)} - ${esc(i.categoria)} - ${i.metodo}</div></div><div class="r-val pos">${fmtMoney(i.monto)}</div></div>`).join('')}</div>`:'<div class="empty"><b>Sin otros ingresos</b>Registra entradas que no sean viajes.</div>'}
+    <button class="fab" data-action="new-income">+</button>`;
+}
+function receivablePaid(r){ return round2((r.pagos||[]).reduce((s,p)=>s+p.monto,0)); }
+function receivableSaldo(r){ return round2(Math.max(0,(r.monto||0)-receivablePaid(r))); }
+function openReceivableForm(id){
+  const r=id?DB.receivables.find(x=>x.id===id):null;
+  const item=r||{fecha:todayISO(), persona:'', concepto:'', monto:'', metodoEntrega:'Efectivo', fechaPromesa:'', nota:''};
+  openModal(r?'Editar cuenta personal':'Nueva cuenta por cobrar', `
+    <input type="hidden" id="recId" value="${item.id||''}">
+    ${r?`<button type="button" class="btn btn-danger btn-sm" data-action="delete-receivable" data-id="${r.id}" style="margin-bottom:12px;">Eliminar cuenta</button>`:''}
+    <div class="field"><label>Fecha</label><input type="date" id="recFecha" value="${item.fecha}"></div>
+    <div class="field"><label>Persona</label><input type="text" id="recPersona" value="${esc(item.persona||'')}" placeholder="Nombre"></div>
+    <div class="field"><label>Concepto</label><input type="text" id="recConcepto" value="${esc(item.concepto||'')}" placeholder="ej. prestamo personal"></div>
+    <div class="field"><label>Monto que te debe</label><input type="number" inputmode="decimal" id="recMonto" value="${item.monto||''}" placeholder="0.00"></div>
+    <div class="field"><label>Como salio el dinero</label><select id="recMetodoEntrega">${payMethodOptionsHtml(item.metodoEntrega||'Efectivo')}</select></div>
+    <div class="field"><label>Fecha prometida de pago</label><input type="date" id="recFechaPromesa" value="${item.fechaPromesa||''}"></div>
+    <div class="field"><label>Nota</label><input type="text" id="recNota" value="${esc(item.nota||'')}" placeholder="opcional"></div>
+  `, `<button class="btn btn-secondary" data-action="close-modal">Cancelar</button><button class="btn btn-primary" data-action="save-receivable">Guardar</button>`);
+}
+function saveReceivableFromForm(){
+  const id=document.getElementById('recId').value; const monto=Number(document.getElementById('recMonto').value)||0;
+  if(monto<=0){ showToast('Ingresa el monto'); return; }
+  const fecha=document.getElementById('recFecha').value||todayISO(); const meta=dateMeta(fecha);
+  const data={fecha,anio:meta.anio,mes:meta.mes,semana:meta.semana,persona:document.getElementById('recPersona').value.trim(),concepto:document.getElementById('recConcepto').value.trim(),monto,metodoEntrega:document.getElementById('recMetodoEntrega').value,fechaPromesa:document.getElementById('recFechaPromesa').value||'',nota:document.getElementById('recNota').value.trim()};
+  if(id){ const r=DB.receivables.find(x=>x.id===id); if(!r)return; Object.assign(r,data); r.estado=receivableSaldo(r)<=0?'pagada':'pendiente'; r.updatedAt=nowISO(); }
+  else { data.id=uuid(); data.estado='pendiente'; data.pagos=[]; data.createdAt=nowISO(); data.updatedAt=nowISO(); DB.receivables.push(data); }
+  saveDB(); closeModal(); showToast('Cuenta guardada'); render();
+}
+function openPayReceivableForm(id){ const r=DB.receivables.find(x=>x.id===id); if(!r)return; openModal('Registrar pago', `<input type="hidden" id="payRecId" value="${id}"><div class="computed-line"><span>Saldo</span><b>${fmtMoney(receivableSaldo(r))}</b></div><div class="field"><label>Fecha</label><input type="date" id="payRecFecha" value="${todayISO()}"></div><div class="field"><label>Monto</label><input type="number" inputmode="decimal" id="payRecMonto" value="${receivableSaldo(r)}"></div><div class="field"><label>Metodo</label><select id="payRecMetodo">${payMethodOptionsHtml('Efectivo')}</select></div>`, `<button class="btn btn-secondary" data-action="close-modal">Cancelar</button><button class="btn btn-primary" data-action="save-receivable-payment">Guardar pago</button>`); }
+function saveReceivablePayment(){ const id=document.getElementById('payRecId').value; const r=DB.receivables.find(x=>x.id===id); if(!r)return; const monto=Number(document.getElementById('payRecMonto').value)||0; if(monto<=0){showToast('Ingresa el monto');return;} if(!Array.isArray(r.pagos))r.pagos=[]; r.pagos.push({id:uuid(),fecha:document.getElementById('payRecFecha').value||todayISO(),monto,metodo:document.getElementById('payRecMetodo').value}); r.estado=receivableSaldo(r)<=0?'pagada':'pendiente'; r.updatedAt=nowISO(); saveDB(); closeModal(); showToast('Pago registrado'); render(); }
+function confirmDeleteReceivable(id){ openModal('Eliminar cuenta', '<p>Seguro que quieres eliminar esta cuenta personal?</p>', `<button class="btn btn-secondary" data-action="close-modal">Cancelar</button><button class="btn btn-danger" data-action="do-delete-receivable" data-id="${id}">Eliminar</button>`); }
+function deleteReceivable(id){ markPendingDelete('receivables',id); DB.receivables=DB.receivables.filter(x=>x.id!==id); saveDB(); closeModal(); showToast('Cuenta eliminada'); render(); }
+function renderCuentasPersonales(){ const items=(DB.receivables||[]).sort((a,b)=>(a.estado==='pendiente'?0:1)-(b.estado==='pendiente'?0:1)||b.fecha.localeCompare(a.fecha)); const total=round2(items.reduce((s,r)=>s+receivableSaldo(r),0)); return `<div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">&lsaquo;</button><h3>Cuentas personales</h3></div><div class="hero-card"><div class="hero-label">Te deben fuera de viajes</div><div class="hero-value ${total>0?'neg':''}">${fmtMoney(total)}</div><div class="hero-sub">Prestamos y cobros personales</div></div>${items.length?`<div class="list">${items.map(r=>`<div class="row" style="flex-wrap:wrap;"><div class="r-main" data-action="edit-receivable" data-id="${r.id}"><div class="r-title">${esc(r.persona||'Sin persona')}</div><div class="r-sub">${esc(r.concepto||'Cuenta personal')} - ${r.estado==='pagada'?'Pagada':'Saldo '+fmtMoney(receivableSaldo(r))}</div></div><div class="r-val ${receivableSaldo(r)>0?'neg':'pos'}">${fmtMoney(receivableSaldo(r))}</div>${receivableSaldo(r)>0?`<button class="btn btn-secondary btn-sm" data-action="pay-receivable" data-id="${r.id}">Pagar</button>`:''}</div>`).join('')}</div>`:'<div class="empty"><b>Sin cuentas personales</b>Registra personas que te deben fuera de viajes.</div>'}<button class="fab" data-action="new-receivable">+</button>`; }
+function fundExpectedWeekly(f){ return round2((Number(f.aportePorNumero)||0) * (String(f.numeros||'').split(',').map(x=>x.trim()).filter(Boolean).length || Number(f.cantidadNumerosPropios)||1)); }
+function openFundForm(id){ const f=id?DB.rotatingFunds.find(x=>x.id===id):null; const item=f||{nombre:'',fechaInicio:todayISO(),totalNumeros:14,numeros:'',aportePorNumero:30,frecuencia:'semanal',nota:''}; openModal(f?'Editar rueda':'Nueva rueda', `<input type="hidden" id="fundId" value="${item.id||''}">${f?`<button type="button" class="btn btn-danger btn-sm" data-action="delete-fund" data-id="${f.id}" style="margin-bottom:12px;">Eliminar rueda</button>`:''}<div class="field"><label>Nombre</label><input type="text" id="fundNombre" value="${esc(item.nombre||'')}" placeholder="ej. Rueda familia"></div><div class="field-row"><div class="field"><label>Fecha inicio</label><input type="date" id="fundFecha" value="${item.fechaInicio}"></div><div class="field"><label>Total numeros</label><input type="number" id="fundTotal" value="${item.totalNumeros||14}"></div></div><div class="field"><label>Tus numeros</label><input type="text" id="fundNumeros" value="${esc(item.numeros||'')}" placeholder="ej. 4,5"></div><div class="field"><label>Aporte por numero</label><input type="number" inputmode="decimal" id="fundAporte" value="${item.aportePorNumero||30}"></div><div class="field"><label>Nota</label><input type="text" id="fundNota" value="${esc(item.nota||'')}"></div>`, `<button class="btn btn-secondary" data-action="close-modal">Cancelar</button><button class="btn btn-primary" data-action="save-fund">Guardar</button>`); }
+function saveFundFromForm(){ const id=document.getElementById('fundId').value; const data={nombre:document.getElementById('fundNombre').value.trim(),fechaInicio:document.getElementById('fundFecha').value||todayISO(),totalNumeros:Number(document.getElementById('fundTotal').value)||14,numeros:document.getElementById('fundNumeros').value.trim(),aportePorNumero:Number(document.getElementById('fundAporte').value)||0,frecuencia:'semanal',nota:document.getElementById('fundNota').value.trim(),estado:'activa'}; if(!data.nombre){showToast('Ingresa nombre');return;} if(id){const f=DB.rotatingFunds.find(x=>x.id===id); if(!f)return; Object.assign(f,data); f.updatedAt=nowISO();} else {data.id=uuid(); data.aportes=[]; data.cobros=[]; data.createdAt=nowISO(); data.updatedAt=nowISO(); DB.rotatingFunds.push(data);} saveDB(); closeModal(); showToast('Rueda guardada'); render(); }
+function openFundMovementForm(id,tipo){ const f=DB.rotatingFunds.find(x=>x.id===id); if(!f)return; const monto=tipo==='aporte'?fundExpectedWeekly(f):''; openModal(tipo==='aporte'?'Registrar aporte':'Registrar cobro', `<input type="hidden" id="fundMovId" value="${id}"><input type="hidden" id="fundMovTipo" value="${tipo}"><div class="field"><label>Fecha</label><input type="date" id="fundMovFecha" value="${todayISO()}"></div><div class="field"><label>Monto</label><input type="number" inputmode="decimal" id="fundMovMonto" value="${monto}"></div><div class="field"><label>Metodo</label><select id="fundMovMetodo">${payMethodOptionsHtml('Efectivo')}</select></div>`, `<button class="btn btn-secondary" data-action="close-modal">Cancelar</button><button class="btn btn-primary" data-action="save-fund-movement">Guardar</button>`); }
+function saveFundMovement(){ const id=document.getElementById('fundMovId').value; const f=DB.rotatingFunds.find(x=>x.id===id); if(!f)return; const tipo=document.getElementById('fundMovTipo').value; const monto=Number(document.getElementById('fundMovMonto').value)||0; if(monto<=0){showToast('Ingresa monto');return;} const item={id:uuid(),fecha:document.getElementById('fundMovFecha').value||todayISO(),monto,metodo:document.getElementById('fundMovMetodo').value}; if(tipo==='aporte'){ if(!Array.isArray(f.aportes))f.aportes=[]; f.aportes.push(item);} else { if(!Array.isArray(f.cobros))f.cobros=[]; f.cobros.push(item);} f.updatedAt=nowISO(); saveDB(); closeModal(); showToast('Movimiento registrado'); render(); }
+function confirmDeleteFund(id){ openModal('Eliminar rueda','<p>Seguro que quieres eliminar esta rueda?</p>',`<button class="btn btn-secondary" data-action="close-modal">Cancelar</button><button class="btn btn-danger" data-action="do-delete-fund" data-id="${id}">Eliminar</button>`); }
+function deleteFund(id){ markPendingDelete('rotatingFunds',id); DB.rotatingFunds=DB.rotatingFunds.filter(x=>x.id!==id); saveDB(); closeModal(); showToast('Rueda eliminada'); render(); }
+function renderRuedas(){ const items=DB.rotatingFunds||[]; return `<div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">&lsaquo;</button><h3>Ruedas</h3></div>${items.length?`<div class="list">${items.map(f=>{const aportado=round2((f.aportes||[]).reduce((s,a)=>s+a.monto,0)); const cobrado=round2((f.cobros||[]).reduce((s,c)=>s+c.monto,0)); return `<div class="row" style="flex-wrap:wrap;"><div class="r-main" data-action="edit-fund" data-id="${f.id}"><div class="r-title">${esc(f.nombre)}</div><div class="r-sub">Numeros ${esc(f.numeros||'-')} - aporte semanal ${fmtMoney(fundExpectedWeekly(f))} - aportado ${fmtMoney(aportado)} - cobrado ${fmtMoney(cobrado)}</div></div><button class="btn btn-secondary btn-sm" data-action="fund-aporte" data-id="${f.id}">Aporte</button><button class="btn btn-primary btn-sm" data-action="fund-cobro" data-id="${f.id}">Cobro</button></div>`}).join('')}</div>`:'<div class="empty"><b>Sin ruedas</b>Registra fondos rotativos o ruedas semanales.</div>'}<button class="fab" data-action="new-fund">+</button>`; }
 
 /* ============================================================
    PRODUCTORES (MINI-CRM)
@@ -2442,6 +2606,15 @@ function deleteCommitment(id){
   markPendingDelete('commitments', id);
   DB.commitments = DB.commitments.filter(c=>c.id!==id); saveDB(); closeModal(); showToast('Compromiso eliminado'); render();
 }
+function settleCommitment(id){
+  const c = DB.commitments.find(x=>x.id===id);
+  if (!c) return;
+  c.estado = 'pagada';
+  if (c.tipo==='deuda') c.saldoPendiente = 0;
+  c.fechaSaldada = todayISO();
+  c.updatedAt = nowISO();
+  saveDB(); showToast('Deuda marcada como saldada'); render();
+}
 
 function openPayCommitmentForm(id){
   const c = DB.commitments.find(x=>x.id===id);
@@ -2540,6 +2713,7 @@ function renderCommitmentRowInner(c){
     </div>
     <div class="r-val mono">${fmtMoney(c.monto)}</div>
     <button class="btn btn-secondary btn-sm" data-action="mark-commitment-paid" data-id="${c.id}">Pagar</button>
+    ${c.tipo==='deuda'?`<button class="btn btn-ghost btn-sm" data-action="settle-commitment" data-id="${c.id}">Saldar</button>`:''}
   `;
 }
 
@@ -3272,7 +3446,7 @@ function renderMas(){
    El servidor decide por updatedAt y conserva eliminaciones para evitar
    que registros borrados reaparezcan en otro dispositivo.
    ============================================================ */
-const SYNC_TABLES = ['trips','expenses','producers','transfers','commitments','maintenance'];
+const SYNC_TABLES = ['trips','expenses','incomes','receivables','rotatingFunds','producers','transfers','commitments','maintenance'];
 let syncBusy = false;
 let syncApplying = false;
 let autoSyncTimer = null;
@@ -3669,6 +3843,32 @@ function handleAction(action, el, ev){
     case 'do-delete-transfer': deleteTransfer(id); break;
     case 'new-comision': openComisionForm(); break;
 
+    // Otros ingresos
+    case 'new-income': openIncomeForm(); break;
+    case 'edit-income': openIncomeForm(id); break;
+    case 'save-income': saveIncomeFromForm(); break;
+    case 'delete-income': confirmDeleteIncome(id); break;
+    case 'do-delete-income': deleteIncome(id); break;
+
+    // Cuentas personales
+    case 'new-receivable': openReceivableForm(); break;
+    case 'edit-receivable': openReceivableForm(id); break;
+    case 'save-receivable': saveReceivableFromForm(); break;
+    case 'delete-receivable': confirmDeleteReceivable(id); break;
+    case 'do-delete-receivable': deleteReceivable(id); break;
+    case 'pay-receivable': openPayReceivableForm(id); break;
+    case 'save-receivable-payment': saveReceivablePayment(); break;
+
+    // Ruedas
+    case 'new-fund': openFundForm(); break;
+    case 'edit-fund': openFundForm(id); break;
+    case 'save-fund': saveFundFromForm(); break;
+    case 'delete-fund': confirmDeleteFund(id); break;
+    case 'do-delete-fund': deleteFund(id); break;
+    case 'fund-aporte': openFundMovementForm(id, 'aporte'); break;
+    case 'fund-cobro': openFundMovementForm(id, 'cobro'); break;
+    case 'save-fund-movement': saveFundMovement(); break;
+
     // Productores
     case 'new-producer': openProducerForm(); break;
     case 'edit-producer': openProducerForm(id); break;
@@ -3686,6 +3886,7 @@ function handleAction(action, el, ev){
     case 'do-delete-commitment': deleteCommitment(id); break;
     case 'mark-commitment-paid': openPayCommitmentForm(id); break;
     case 'confirm-pay-commitment': confirmPayCommitment(); break;
+    case 'settle-commitment': settleCommitment(id); break;
 
     // Mantenimiento
     case 'new-maint': openMaintForm(); break;
