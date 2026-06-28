@@ -7,12 +7,14 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="SANVI">
-<link rel="manifest" href="manifest.webmanifest?v=20260623-3">
-<link rel="apple-touch-icon" href="icon-192.png?v=20260623-3">
+<link rel="manifest" href="manifest.webmanifest?v=20260626-4">
+<link rel="apple-touch-icon" href="icon-192.png?v=20260626-4">
 <title>SANVI — El Cuadre, Camión &amp; Casa</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <style>
 /* ============================================================
    EL CUADRE — DESIGN TOKENS
@@ -196,6 +198,7 @@ a{color:var(--yellow);}
 }
 .alert.warn{background:rgba(244,180,0,.08);border-color:rgba(244,180,0,.35);color:var(--yellow);}
 .alert.danger{background:rgba(226,86,47,.08);border-color:rgba(226,86,47,.35);color:#FF8A65;}
+.alert.success{background:rgba(127,176,105,.08);border-color:rgba(127,176,105,.35);color:var(--green);}
 .alert .a-icon{flex-shrink:0;margin-top:1px;}
 .alert b{color:var(--text);}
 
@@ -314,6 +317,12 @@ a{color:var(--yellow);}
 
 /* ---------- Medidor de combustible (aguja arrastrable) ---------- */
 .fuel-gauge-row{display:flex;gap:10px;margin-bottom:8px;}
+.route-map{height:250px;border:1px solid var(--border);background:var(--surface-2);margin:8px 0;border-radius:6px;overflow:hidden;}
+.route-points{display:flex;flex-direction:column;gap:6px;margin:8px 0;}
+.route-point{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;font-size:12px;}
+.route-point .route-point-main{flex:1;min-width:0;}
+.route-status{font-size:12px;color:var(--text-dim);line-height:1.45;margin-top:6px;}
+.measurement-toggle{display:flex;align-items:center;gap:8px;padding:9px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;margin-bottom:10px;}
 .fuel-gauge{
   flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);
   padding:8px 8px 10px;text-align:center;
@@ -559,6 +568,7 @@ const AUTO_SYNC_DEBOUNCE_MS = 15000;
 const DEFAULT_CATEGORIES = {
   cargoType: ['Caja de Banano','Cartón','Domicilios/Mudanzas','Otros fletes'],
   origenViaje: ['Me llamó el productor','Me envió un carrero','Yo envié carrero'],
+  incomeCategory: ['Saldo inicial','Familia / remesa','Cobro ocasional','Venta','Rueda','Otro'],
   // grupo: 'camion' (afecta utilidad operativa) | 'personal' (gasto de vida)
   // tipo:  'costo' (ligado directamente a generar un viaje/ingreso) | 'egreso' (no genera ingreso directo)
   expenseCategory: [
@@ -700,6 +710,8 @@ function defaultDB(){
       diasPlazoCobro: 8,
       diasAlertaCarguero: 5,
       capacidadTanqueGalones: 200,
+      capacidadTanqueConfirmada: false,
+      ubicacionBase: null,
       thresholdEndeudamientoPct: 60,
       settingsUpdatedAt: null,
       categoriesUpdatedAt: null,
@@ -748,6 +760,7 @@ function fillDefaults(db){
     }
   }
   if (!Array.isArray(db.categories.origenViaje) || !db.categories.origenViaje.length) db.categories.origenViaje = def.categories.origenViaje;
+  if (!Array.isArray(db.categories.incomeCategory) || !db.categories.incomeCategory.length) db.categories.incomeCategory = def.categories.incomeCategory;
   if (!Array.isArray(db.categories.causaMora) || !db.categories.causaMora.length) db.categories.causaMora = def.categories.causaMora;
   if (!Array.isArray(db.categories.commitmentTemplates) || !db.categories.commitmentTemplates.length) db.categories.commitmentTemplates = def.categories.commitmentTemplates;
   // Migración: viajes guardados antes de la v2 no tienen costos en ruta, carguero, etc.
@@ -759,6 +772,17 @@ function fillDefaults(db){
     if (t.requiereFactura===undefined) t.requiereFactura = false;
     if (t.facturaPct===undefined) t.facturaPct = 0;
     if (!t.combustible) t.combustible = {salida:null, regreso:null};
+    if (t.hora==null) t.hora = '12:00';
+    if (t.combustibleMedido==null) t.combustibleMedido = t.combustible.salida!=null && t.combustible.regreso!=null;
+    if (!Array.isArray(t.puntosRuta)) t.puntosRuta = [];
+    if (!t.rutaCalculada) t.rutaCalculada = null;
+  });
+  db.expenses.forEach(e=>{
+    if (e.hora==null) e.hora = '12:00';
+    if (e.categoria==='Combustible'){
+      if (!e.detalle) e.detalle = {};
+      if (e.detalle.medicionConfirmada==null) e.detalle.medicionConfirmada = e.detalle.tankBefore!=null && e.detalle.tankAfter!=null;
+    }
   });
   // Migración: compromisos guardados antes de la v2 no tienen plazo/clasificación/causa de mora.
   db.commitments.forEach(c=>{
@@ -766,6 +790,19 @@ function fillDefaults(db){
     if (!c.clasificacion) c.clasificacion = 'egreso';
     if (c.esCuotaCompania===undefined) c.esCuotaCompania = (c.categoriaGasto==='Cuota Compañía');
     if (!Array.isArray(c.historialMora)) c.historialMora = []; // [{fecha, excedente, causa}]
+  });
+  // La primera versión del formulario de ingresos podía guardar la categoría vacía.
+  // Esos registros se usaron para cargar el dinero existente al comenzar.
+  db.incomes.forEach(i=>{
+    if (!i.categoria){
+      i.categoria = 'Saldo inicial';
+      i.updatedAt = nowISO();
+    }
+  });
+  db.rotatingFunds.forEach(f=>{
+    if (!f.modoRegistro) f.modoRegistro = 'completa';
+    if (f.cuotasPendientesAlRegistrar==null) f.cuotasPendientesAlRegistrar = Number(f.totalNumeros)||14;
+    if (f.cobroYaRecibido==null) f.cobroYaRecibido = false;
   });
   return db;
 }
@@ -942,6 +979,80 @@ function costosRutaTotal(t){
   const c = t.costosRuta || {};
   return round2((Number(c.diesel)||0)+(Number(c.peaje)||0)+(Number(c.comida)||0)+(Number(c.otro)||0));
 }
+function costosRutaSinDiesel(t){
+  const c = t.costosRuta || {};
+  return round2((Number(c.peaje)||0)+(Number(c.comida)||0)+(Number(c.otro)||0));
+}
+function eventDateTime(item){
+  const stamp = Date.parse(`${item.fecha||todayISO()}T${item.hora||'12:00'}:00`);
+  return Number.isFinite(stamp) ? stamp : Date.parse(item.fecha||'') || 0;
+}
+function fuelCapacityReady(){
+  return !!(DB.meta.capacidadTanqueConfirmada && Number(DB.meta.capacidadTanqueGalones)>0);
+}
+function tripConsumoGalonesMedido(t){
+  const cb=t.combustible||{};
+  if (!fuelCapacityReady() || !t.combustibleMedido || cb.salida==null || cb.regreso==null) return null;
+  return round2(Math.max(0,Number(cb.salida)-Number(cb.regreso))*Number(DB.meta.capacidadTanqueGalones)/100);
+}
+function buildFuelLedger(){
+  const costs=new Map();
+  const events=[];
+  (DB.expenses||[]).filter(e=>e.categoria==='Combustible').forEach(e=>events.push({
+    kind:'fill', item:e, at:eventDateTime(e), before:e.detalle&&e.detalle.medicionConfirmada?Number(e.detalle.tankBefore):null,
+    after:e.detalle&&e.detalle.medicionConfirmada?Number(e.detalle.tankAfter):null
+  }));
+  (DB.trips||[]).filter(t=>t.combustibleMedido && !(t.carguero&&t.carguero.nombre)).forEach(t=>events.push({
+    kind:'trip', item:t, at:eventDateTime(t), before:Number(t.combustible&&t.combustible.salida),
+    after:Number(t.combustible&&t.combustible.regreso)
+  }));
+  events.sort((a,b)=>a.at-b.at || (a.kind==='fill'?-1:1));
+  let qty=0,value=0,lastLevel=null,lastUnit=0;
+  let unassociatedGallons=0,unassociatedCost=0;
+  const consume=(gallons)=>{
+    gallons=Math.max(0,Number(gallons)||0);
+    const unit=qty>0?value/qty:lastUnit;
+    const cost=round2(gallons*unit);
+    qty=Math.max(0,qty-gallons);
+    value=Math.max(0,value-cost);
+    return cost;
+  };
+  for(const ev of events){
+    if (fuelCapacityReady() && lastLevel!=null && ev.before!=null && lastLevel>ev.before){
+      const gapGallons=round2((lastLevel-ev.before)*Number(DB.meta.capacidadTanqueGalones)/100);
+      unassociatedGallons=round2(unassociatedGallons+gapGallons);
+      unassociatedCost=round2(unassociatedCost+consume(gapGallons));
+    }
+    if(ev.kind==='fill'){
+      const gallons=Number(ev.item.galones)||0;
+      if(gallons>0){
+        const unit=(Number(ev.item.monto)||0)/gallons;
+        if(qty<=0 && fuelCapacityReady() && ev.before!=null && ev.before>0){
+          qty=round2(ev.before*Number(DB.meta.capacidadTanqueGalones)/100);
+          value=round2(qty*unit);
+        }
+        qty=round2(qty+gallons); value=round2(value+(Number(ev.item.monto)||0)); lastUnit=unit;
+      }
+      if(fuelCapacityReady() && ev.after!=null){
+        const calibrated=round2(ev.after*Number(DB.meta.capacidadTanqueGalones)/100);
+        const avg=qty>0?value/qty:lastUnit;
+        qty=calibrated; value=round2(calibrated*avg);
+      }
+    }else{
+      const gallons=tripConsumoGalonesMedido(ev.item);
+      costs.set(String(ev.item.id),{gallons,cost:gallons==null?null:consume(gallons),unitCost:gallons?round2((costs.get(String(ev.item.id))||{}).cost/gallons):null});
+      const entry=costs.get(String(ev.item.id));
+      if(entry && entry.gallons>0) entry.unitCost=round2(entry.cost/entry.gallons);
+    }
+    if(ev.after!=null) lastLevel=ev.after;
+  }
+  return {costs,unassociatedGallons,unassociatedCost,remainingGallons:round2(qty),remainingValue:round2(value),averageCost:qty>0?round2(value/qty):lastUnit};
+}
+function tripFuelInfo(t){ return buildFuelLedger().costs.get(String(t.id)) || {gallons:null,cost:null,unitCost:null}; }
+function tripFuelCost(t){
+  const info=tripFuelInfo(t);
+  return info.cost!=null ? info.cost : round2(Number((t.costosRuta||{}).diesel)||0);
+}
 function serviciosAdicionalesTotal(t){
   return round2((t.serviciosAdicionales||[]).reduce((s,x)=>s+(Number(x.valor)||0),0));
 }
@@ -960,7 +1071,7 @@ function tripIngresoBruto(t){
 }
 // Utilidad neta = Ingreso − Costos en ruta − Pago carguero − % de factura de la compañía
 function tripUtilidadNeta(t){
-  return round2(tripIngresoBruto(t) - costosRutaTotal(t) - cargueroMontoTrip(t) - costoFacturaTrip(t));
+  return round2(tripIngresoBruto(t) - costosRutaSinDiesel(t) - tripFuelCost(t) - cargueroMontoTrip(t) - costoFacturaTrip(t));
 }
 
 // ---- Cuentas por cobrar: semáforo automático (item 13-16) ----
@@ -1010,7 +1121,7 @@ function periodTripsIngreso(items){
   return items.reduce((s,t)=> s + tripIngresoBruto(t), 0);
 }
 function periodCostosRuta(items){
-  return round2(items.reduce((s,t)=>s+costosRutaTotal(t),0));
+  return round2(items.reduce((s,t)=>s+costosRutaSinDiesel(t)+tripFuelCost(t),0));
 }
 function periodCargueroPagos(items){
   return round2(items.reduce((s,t)=>s+cargueroMontoTrip(t),0));
@@ -1023,6 +1134,9 @@ function periodUtilidadNetaViajes(items){
 }
 function periodExpensesByGrupo(items, grupo){
   return items.filter(e=>expenseGrupo(e.categoria)===grupo).reduce((s,e)=>s+e.monto,0);
+}
+function periodTruckExpensesForProfit(items){
+  return round2(items.filter(e=>expenseGrupo(e.categoria)==='camion' && e.categoria!=='Combustible').reduce((s,e)=>s+e.monto,0));
 }
 // COSTO vs EGRESO (item: terminología nueva) — incluye gastos sueltos clasificados
 function periodExpensesByTipo(items, tipo){
@@ -1352,6 +1466,7 @@ function openModal(title, bodyHtml, footHtml){
   });
 }
 function closeModal(){
+  if (typeof tripRouteMap!=='undefined' && tripRouteMap){ try{tripRouteMap.remove();}catch(e){} tripRouteMap=null; tripRouteLayer=null; }
   document.getElementById('modalRoot').innerHTML = '';
 }
 
@@ -1426,6 +1541,92 @@ function wireFuelGauge(containerId, initial, onChange){
    VIAJES (INGRESOS)
    ============================================================ */
 let tripFormServicios = [];
+let tripFormRoutePoints = [];
+let tripFormRouteData = null;
+let tripRouteMap = null;
+let tripRouteLayer = null;
+function routeTemplates(){
+  const seen=new Set();
+  return (DB.trips||[]).filter(t=>Array.isArray(t.puntosRuta)&&t.puntosRuta.length>=2&&t.rutaCalculada).filter(t=>{
+    const key=(t.ruta||'').trim().toLowerCase()||JSON.stringify(t.puntosRuta);
+    if(seen.has(key))return false; seen.add(key); return true;
+  }).sort((a,b)=>b.fecha.localeCompare(a.fecha)).slice(0,20);
+}
+function routePointListHtml(){
+  if(!tripFormRoutePoints.length) return '<div class="field-hint">Sin puntos todavía. Usa tu ubicación o toca el mapa.</div>';
+  return tripFormRoutePoints.map((p,i)=>`<div class="route-point"><div class="route-point-main"><b>${i===0?'Salida':'Parada '+i}</b><div>${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}</div></div><button type="button" class="icon-btn" data-action="route-remove-point" data-idx="${i}" title="Eliminar punto">✕</button></div>`).join('');
+}
+function renderRoutePointList(){
+  const el=document.getElementById('tRoutePoints');
+  if(el)el.innerHTML=routePointListHtml();
+}
+function initTripRouteMap(){
+  const el=document.getElementById('tRouteMap');
+  if(!el||typeof L==='undefined')return;
+  if(tripRouteMap){try{tripRouteMap.remove();}catch(e){}}
+  tripRouteMap=L.map(el,{zoomControl:true}).setView([-3.258, -79.955],9);
+  if(navigator.onLine) L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'&copy; OpenStreetMap'}).addTo(tripRouteMap);
+  tripRouteMap.on('click',ev=>{tripFormRoutePoints.push({lat:ev.latlng.lat,lng:ev.latlng.lng,label:'Parada '+tripFormRoutePoints.length}); tripFormRouteData=null; renderRoutePointList(); refreshTripRouteMap();});
+  refreshTripRouteMap();
+  setTimeout(()=>tripRouteMap&&tripRouteMap.invalidateSize(),50);
+}
+function refreshTripRouteMap(){
+  if(!tripRouteMap||typeof L==='undefined')return;
+  if(tripRouteLayer){tripRouteMap.removeLayer(tripRouteLayer);tripRouteLayer=null;}
+  const group=[];
+  tripFormRoutePoints.forEach((p,i)=>group.push(L.marker([p.lat,p.lng]).bindTooltip(i===0?'Salida':'Parada '+i)));
+  if(tripFormRouteData&&Array.isArray(tripFormRouteData.coordinates)&&tripFormRouteData.coordinates.length){
+    group.push(L.polyline(tripFormRouteData.coordinates.map(c=>[c[1],c[0]]),{color:'#F4B400',weight:4}));
+  }else if(tripFormRoutePoints.length>1){
+    group.push(L.polyline(tripFormRoutePoints.map(p=>[p.lat,p.lng]),{color:'#6FA0B4',weight:3,dashArray:'6 6'}));
+  }
+  if(group.length){tripRouteLayer=L.featureGroup(group).addTo(tripRouteMap);tripRouteMap.fitBounds(tripRouteLayer.getBounds().pad(.15));}
+}
+function captureRouteLocation(){
+  if(!navigator.geolocation){showToast('Este dispositivo no permite obtener ubicación');return;}
+  showToast('Obteniendo ubicación...');
+  navigator.geolocation.getCurrentPosition(pos=>{
+    tripFormRoutePoints.push({lat:pos.coords.latitude,lng:pos.coords.longitude,label:tripFormRoutePoints.length?'Parada '+tripFormRoutePoints.length:'Salida'});
+    tripFormRouteData=null; renderRoutePointList(); refreshTripRouteMap(); showToast('Ubicación guardada');
+  },()=>showToast('No se pudo obtener la ubicación. Revisa el permiso de ubicación.'),{enableHighAccuracy:true,timeout:15000,maximumAge:30000});
+}
+function removeRoutePoint(idx){tripFormRoutePoints.splice(idx,1);tripFormRouteData=null;renderRoutePointList();refreshTripRouteMap();}
+function useBaseRoutePoint(){
+  if(!DB.meta.ubicacionBase){showToast('Todavía no has guardado una salida habitual');return;}
+  tripFormRoutePoints.unshift(JSON.parse(JSON.stringify(DB.meta.ubicacionBase)));
+  tripFormRouteData=null;renderRoutePointList();refreshTripRouteMap();
+}
+function saveFirstRoutePointAsBase(){
+  if(!tripFormRoutePoints.length){showToast('Primero añade tu ubicación de salida');return;}
+  DB.meta.ubicacionBase=Object.assign({},tripFormRoutePoints[0],{label:'Salida habitual'});
+  touchSettings();saveDB();showToast('Salida habitual guardada y sincronizable');
+}
+async function calculateTripRoute(){
+  if(tripFormRoutePoints.length<2){showToast('Añade al menos salida y destino');return;}
+  if(!navigator.onLine){showToast('Para calcular una ruta nueva necesitas internet');return;}
+  const round=(document.getElementById('tRouteRound')||{}).checked;
+  const pts=round?[...tripFormRoutePoints,tripFormRoutePoints[0]]:tripFormRoutePoints;
+  const coords=pts.map(p=>`${p.lng},${p.lat}`).join(';');
+  const status=document.getElementById('tRouteStatus');
+  if(status)status.textContent='Calculando ruta...';
+  try{
+    const res=await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`);
+    const json=await res.json();
+    if(!json.routes||!json.routes[0])throw new Error('Sin ruta');
+    tripFormRouteData={distanceKm:round2(json.routes[0].distance/1000),durationMin:Math.round(json.routes[0].duration/60),coordinates:json.routes[0].geometry.coordinates,roundTrip:round,calculatedAt:nowISO()};
+    if(status)status.textContent=`Ruta estimada: ${tripFormRouteData.distanceKm} km · ${tripFormRouteData.durationMin} min. Queda guardada para reutilizarla sin internet.`;
+    refreshTripRouteMap();
+  }catch(e){if(status)status.textContent='No se pudo calcular la ruta. Conservamos las coordenadas para intentarlo después.';showToast('No se pudo calcular la ruta');}
+}
+function loadSavedTripRoute(){
+  const id=(document.getElementById('tSavedRoute')||{}).value;
+  const t=DB.trips.find(x=>x.id===id);
+  if(!t)return;
+  tripFormRoutePoints=JSON.parse(JSON.stringify(t.puntosRuta||[]));
+  tripFormRouteData=t.rutaCalculada?JSON.parse(JSON.stringify(t.rutaCalculada)):null;
+  const ruta=document.getElementById('tRuta'); if(ruta&&!ruta.value)ruta.value=t.ruta||'';
+  renderRoutePointList();refreshTripRouteMap();showToast('Ruta guardada cargada');
+}
 function serviciosListHtml(){
   if (!tripFormServicios.length) return `<div class="field-hint" style="margin-bottom:8px;">Sin servicios adicionales — toca "+ Agregar" si cobraste algo extra (ej. cajas, cartón).</div>`;
   return `<div id="tServiciosRows">` + tripFormServicios.map((s,i)=>`
@@ -1460,9 +1661,11 @@ function tripFormHtml(t){
   t = t || {tipoCarga:DB.categories.cargoType[0], origenViaje:'', productorNombre:'', productorTelefono:'', ruta:'',
             valorFlete:'', anticipo:'', descuento:'', estado:'por_cobrar', metodoRecibo:'Efectivo',
             requiereFactura:false, facturaPct:'', carguero:null,
-            costosRuta:{diesel:'',peaje:'',comida:'',otro:''}, combustible:{salida:null,regreso:null},
-            kmInicial:'', kmFinal:'', nota:'', fecha:todayISO()};
+            costosRuta:{diesel:'',peaje:'',comida:'',otro:''}, combustible:{salida:null,regreso:null}, combustibleMedido:false,
+            puntosRuta:[], rutaCalculada:null, nota:'', fecha:todayISO(), hora:new Date().toTimeString().slice(0,5)};
   tripFormServicios = (t.serviciosAdicionales||[]).map(s=>({nombre:s.nombre||'', valor:s.valor!=null?s.valor:''}));
+  tripFormRoutePoints = JSON.parse(JSON.stringify(t.puntosRuta||[]));
+  tripFormRouteData = t.rutaCalculada ? JSON.parse(JSON.stringify(t.rutaCalculada)) : null;
   const cargoOpts = DB.categories.cargoType.map(c=>`<option ${c===t.tipoCarga?'selected':''}>${esc(c)}</option>`).join('');
   const origenOpts = `<option value="">— Selecciona —</option>` + DB.categories.origenViaje.map(o=>`<option ${o===t.origenViaje?'selected':''}>${esc(o)}</option>`).join('');
   const tieneCarguero = !!(t.carguero && t.carguero.nombre);
@@ -1473,7 +1676,7 @@ function tripFormHtml(t){
   return `
     <input type="hidden" id="tripId" value="${t.id||''}">
     ${t.id?`<button type="button" class="btn btn-danger btn-sm" data-action="delete-trip" data-id="${t.id}" style="margin-bottom:12px;">🗑 Eliminar viaje</button>`:''}
-    <div class="field"><label>Fecha</label><input type="date" id="tFecha" value="${t.fecha}"></div>
+    <div class="field-row"><div class="field"><label>Fecha</label><input type="date" id="tFecha" value="${t.fecha}"></div><div class="field"><label>Hora aproximada</label><input type="time" id="tHora" value="${t.hora||'12:00'}"></div></div>
     <div class="field-row">
       <div class="field"><label>Tipo de carga</label><select id="tTipo">${cargoOpts}</select></div>
       <div class="field"><label>Origen del viaje</label><select id="tOrigen">${origenOpts}</select></div>
@@ -1484,6 +1687,14 @@ function tripFormHtml(t){
     </div>
     <datalist id="productorList">${DB.producers.map(p=>`<option value="${esc(p.nombre)}">`).join('')}</datalist>
     <div class="field"><label>Ruta / Fincas</label><textarea id="tRuta" placeholder="Finca 1 Tenguel, Finca 2 El Guabo">${esc(t.ruta||'')}</textarea></div>
+    <div class="section-label">Ruta estimada por mapa</div>
+    ${routeTemplates().length?`<div class="field-row"><div class="field"><label>Ruta guardada</label><select id="tSavedRoute"><option value="">Selecciona</option>${routeTemplates().map(x=>`<option value="${x.id}">${esc(x.ruta||x.tipoCarga)} · ${x.rutaCalculada.distanceKm} km</option>`).join('')}</select></div><div class="field" style="align-self:end;"><button type="button" class="btn btn-secondary" data-action="route-load-saved">Usar ruta</button></div></div>`:''}
+    <div id="tRoutePoints" class="route-points">${routePointListHtml()}</div>
+    <div class="btn-row"><button type="button" class="btn btn-secondary btn-sm" data-action="route-capture-location">Guardar ubicación actual</button>${DB.meta.ubicacionBase?'<button type="button" class="btn btn-secondary btn-sm" data-action="route-use-base">Usar salida habitual</button>':'<button type="button" class="btn btn-secondary btn-sm" data-action="route-save-base">Guardar primera como salida habitual</button>'}<button type="button" class="btn btn-secondary btn-sm" data-action="route-clear">Limpiar puntos</button></div>
+    <div class="measurement-toggle"><input type="checkbox" id="tRouteRound" ${t.rutaCalculada&&t.rutaCalculada.roundTrip?'checked':''}><label for="tRouteRound">Incluir regreso al punto de salida</label></div>
+    <button type="button" class="btn btn-primary" data-action="route-calculate">Calcular ruta con internet</button>
+    <div id="tRouteStatus" class="route-status">${t.rutaCalculada?`Ruta guardada: ${t.rutaCalculada.distanceKm} km estimados · reutilizable sin internet.`:'Puedes guardar coordenadas sin internet. Calcular una ruta nueva necesita conexión.'}</div>
+    <div id="tRouteMap" class="route-map"></div>
 
     <div class="field-row">
       <div class="field"><label>Valor del flete</label><input type="number" inputmode="decimal" id="tValor" placeholder="0.00" value="${t.valorFlete}"></div>
@@ -1542,23 +1753,19 @@ function tripFormHtml(t){
 
     <div class="section-label">Costos en ruta</div>
     <div class="field-row">
-      <div class="field"><label>Diésel</label><input type="number" inputmode="decimal" id="tCostoDiesel" placeholder="0.00" value="${cr.diesel||''}"></div>
       <div class="field"><label>Peaje</label><input type="number" inputmode="decimal" id="tCostoPeaje" placeholder="0.00" value="${cr.peaje||''}"></div>
-    </div>
-    <div class="field-row">
       <div class="field"><label>Comida</label><input type="number" inputmode="decimal" id="tCostoComida" placeholder="0.00" value="${cr.comida||''}"></div>
-      <div class="field"><label>Otro</label><input type="number" inputmode="decimal" id="tCostoOtro" placeholder="0.00" value="${cr.otro||''}"></div>
     </div>
+    <div class="field"><label>Otro costo directo</label><input type="number" inputmode="decimal" id="tCostoOtro" placeholder="0.00" value="${cr.otro||''}"></div>
 
-    <div class="section-label">Combustible</div>
-    <div class="fuel-gauge-row">
-      ${fuelGaugeHtml('tFgSalida','Nivel al salir')}
-      ${fuelGaugeHtml('tFgRegreso','Nivel al regresar')}
-    </div>
-
-    <div class="field-row">
-      <div class="field"><label>Km inicial (odómetro)</label><input type="number" id="tKmIni" placeholder="opcional" value="${t.kmInicial!=null?t.kmInicial:''}"></div>
-      <div class="field"><label>Km final (odómetro)</label><input type="number" id="tKmFin" placeholder="opcional" value="${t.kmFinal!=null?t.kmFinal:''}"></div>
+    <div class="section-label">Combustible consumido</div>
+    <div class="measurement-toggle"><input type="checkbox" id="tFuelMeasured" ${t.combustibleMedido?'checked':''}><label for="tFuelMeasured">Tengo medición del tanque para este viaje</label></div>
+    <div id="tFuelGaugeWrap" class="${t.combustibleMedido?'':'hidden'}">
+      <div class="fuel-gauge-row">
+        ${fuelGaugeHtml('tFgSalida','Nivel al salir')}
+        ${fuelGaugeHtml('tFgRegreso','Nivel al regresar')}
+      </div>
+      <div class="field-hint">${fuelCapacityReady()?'SANVI calculará galones y costo según el promedio vigente.':'Confirma la capacidad real del tanque en Configuración para convertir porcentajes a galones.'}</div>
     </div>
     <div class="field"><label>Nota</label><input type="text" id="tNota" placeholder="opcional" value="${esc(t.nota||'')}"></div>
 
@@ -1573,6 +1780,7 @@ function openTripForm(id){
     `<button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
      <button class="btn btn-primary" data-action="save-trip">${t?'Guardar':'Registrar viaje'}</button>`);
   wireTripFormInteractivity(t);
+  initTripRouteMap();
 }
 function wireSeg(id, onChange){
   const seg = document.getElementById(id);
@@ -1586,7 +1794,7 @@ function wireSeg(id, onChange){
 function wireTripFormInteractivity(t){
   const applyCargueroMode = ()=>{
     const active = (document.querySelector('#tCargueroSeg button.active')||{}).dataset?.val==='si';
-    ['tCostoDiesel','tCostoPeaje','tCostoComida','tCostoOtro','tKmIni','tKmFin'].forEach(id=>{
+    ['tCostoPeaje','tCostoComida','tCostoOtro'].forEach(id=>{
       const el=document.getElementById(id);
       if (el) el.disabled = active;
     });
@@ -1610,13 +1818,16 @@ function wireTripFormInteractivity(t){
   });
   wireSeg('tCargueroPagadoSeg');
   wireServiciosList();
-  wireFuelGauge('tFgSalida', t && t.combustible ? t.combustible.salida : 50);
-  wireFuelGauge('tFgRegreso', t && t.combustible ? t.combustible.regreso : 30);
+  const measured=!!(t&&t.combustibleMedido);
+  wireFuelGauge('tFgSalida', measured&&t.combustible&&t.combustible.salida!=null?t.combustible.salida:lastKnownTankLevel(),updateTripUtilidadPreview);
+  wireFuelGauge('tFgRegreso', measured&&t.combustible&&t.combustible.regreso!=null?t.combustible.regreso:lastKnownTankLevel(),updateTripUtilidadPreview);
+  const fuelToggle=document.getElementById('tFuelMeasured');
+  if(fuelToggle)fuelToggle.addEventListener('change',()=>{document.getElementById('tFuelGaugeWrap').classList.toggle('hidden',!fuelToggle.checked);updateTripUtilidadPreview();});
   ['tValor','tAnticipo','tDescuento'].forEach(id=>{
     document.getElementById(id).addEventListener('input', ()=>{ updateTripSaldoPreview(); updateTripUtilidadPreview(); });
   });
-  ['tCostoDiesel','tCostoPeaje','tCostoComida','tCostoOtro','tCargueroMonto','tFacturaPct'].forEach(id=>{
-    document.getElementById(id).addEventListener('input', updateTripUtilidadPreview);
+  ['tCostoPeaje','tCostoComida','tCostoOtro','tCargueroMonto','tFacturaPct'].forEach(id=>{
+    const el=document.getElementById(id); if(el)el.addEventListener('input', updateTripUtilidadPreview);
   });
   updateTripUtilidadPreview();
   applyCargueroMode();
@@ -1633,15 +1844,22 @@ function updateTripUtilidadPreview(){
   const d = Number(document.getElementById('tDescuento').value)||0;
   const serviciosTotal = tripFormServicios.reduce((s,x)=>s+(Number(x.valor)||0),0);
   const cargueroActivo = (document.querySelector('#tCargueroSeg button.active')||{}).dataset?.val==='si';
-  const costosRuta = cargueroActivo ? 0 : ((Number(document.getElementById('tCostoDiesel').value)||0)
-    + (Number(document.getElementById('tCostoPeaje').value)||0)
+  const costosRuta = cargueroActivo ? 0 : ((Number(document.getElementById('tCostoPeaje').value)||0)
     + (Number(document.getElementById('tCostoComida').value)||0)
     + (Number(document.getElementById('tCostoOtro').value)||0));
   const cargueroMonto = cargueroActivo ? (Number(document.getElementById('tCargueroMonto').value)||0) : 0;
+  let combustibleEstimado=0;
+  const measured=!!(document.getElementById('tFuelMeasured')||{}).checked;
+  if(measured&&fuelCapacityReady()){
+    const salida=Number((document.getElementById('tFgSalida')||{}).dataset?.value)||0;
+    const regreso=Number((document.getElementById('tFgRegreso')||{}).dataset?.value)||0;
+    const gallons=Math.max(0,salida-regreso)*Number(DB.meta.capacidadTanqueGalones)/100;
+    combustibleEstimado=gallons*(buildFuelLedger().averageCost||0);
+  }
   const facturaActiva = (document.querySelector('#tFacturaSeg button.active')||{}).dataset?.val==='si';
   const facturaPct = facturaActiva ? (Number(document.getElementById('tFacturaPct').value)||0) : 0;
   const costoFactura = v * (facturaPct/100);
-  const utilidad = round2(v + serviciosTotal - d - costosRuta - cargueroMonto - costoFactura);
+  const utilidad = round2(v + serviciosTotal - d - costosRuta - cargueroMonto - costoFactura - combustibleEstimado);
   const el = document.getElementById('tUtilidadPreview');
   if (el){ el.textContent = fmtMoney(utilidad); el.style.color = utilidad>=0 ? 'var(--green)' : 'var(--red)'; }
 }
@@ -1655,8 +1873,7 @@ function saveTripFromForm(){
   const metodoRecibo = estado==='cobrado' ? document.querySelector('#tMetodoSeg button.active').dataset.val : null;
   const nombre = document.getElementById('tProductor').value.trim();
   const meta = dateMeta(fecha);
-  const kmIniVal = document.getElementById('tKmIni').value;
-  const kmFinVal = document.getElementById('tKmFin').value;
+  const combustibleMedido = !!(document.getElementById('tFuelMeasured')||{}).checked;
 
   let productorId = null;
   if (nombre){
@@ -1691,7 +1908,7 @@ function saveTripFromForm(){
   const fgRegreso = document.getElementById('tFgRegreso');
 
   const data = {
-    fecha, anio: meta.anio, mes: meta.mes, semana: meta.semana,
+    fecha, hora:document.getElementById('tHora').value||'12:00', anio: meta.anio, mes: meta.mes, semana: meta.semana,
     tipoCarga: document.getElementById('tTipo').value,
     origenViaje: document.getElementById('tOrigen').value,
     productorId, productorNombre: nombre, productorTelefono: document.getElementById('tTelefono').value.trim(),
@@ -1704,18 +1921,21 @@ function saveTripFromForm(){
     facturaPct: requiereFactura ? (Number(document.getElementById('tFacturaPct').value)||0) : 0,
     estado, metodoRecibo,
     carguero,
+    puntosRuta:JSON.parse(JSON.stringify(tripFormRoutePoints)),
+    rutaCalculada:tripFormRouteData?JSON.parse(JSON.stringify(tripFormRouteData)):null,
     costosRuta: {
-      diesel: Number(document.getElementById('tCostoDiesel').value)||0,
+      diesel: 0,
       peaje: Number(document.getElementById('tCostoPeaje').value)||0,
       comida: Number(document.getElementById('tCostoComida').value)||0,
       otro: Number(document.getElementById('tCostoOtro').value)||0,
     },
-    combustible: {
+    combustibleMedido,
+    combustible: combustibleMedido ? {
       salida: fgSalida ? Number(fgSalida.dataset.value) : null,
       regreso: fgRegreso ? Number(fgRegreso.dataset.value) : null,
-    },
-    kmInicial: kmIniVal===''? null : Number(kmIniVal),
-    kmFinal: kmFinVal===''? null : Number(kmFinVal),
+    } : {salida:null,regreso:null},
+    kmInicial:null,
+    kmFinal:null,
     nota: document.getElementById('tNota').value.trim(),
   };
   if (carguero){
@@ -1771,6 +1991,8 @@ function renderViajes(){
       const badges = [];
       if (tripTieneCarguero(t)) badges.push(`<span class="mini-badge ${t.carguero.pagado?'pagado':'pendiente'}">🚚 ${t.carguero.pagado?'Carguero pagado':'Carguero pendiente'}</span>`);
       if (t.requiereFactura) badges.push(`<span class="mini-badge info">🧾 Factura ${t.facturaPct||0}%</span>`);
+      if (t.rutaCalculada) badges.push(`<span class="mini-badge info">${t.rutaCalculada.distanceKm} km estimados</span>`);
+      if (tripFuelInfo(t).cost!=null) badges.push(`<span class="mini-badge info">Diésel ${fmtMoney(tripFuelInfo(t).cost)}</span>`);
       return `
       <div class="ticket" data-action="edit-trip" data-id="${t.id}">
         <div class="ticket-main">
@@ -1838,12 +2060,14 @@ function expenseDetailFieldsHtml(categoria, detalle){
         <div class="field"><label>Gasolinera</label><input type="text" id="eDetGasolinera" list="gasStationList" value="${esc(detalle.gasolinera||'')}" placeholder="Nombre de la estación"></div>
         <datalist id="gasStationList">${DB.categories.gasStation.map(g=>`<option value="${esc(g)}">`).join('')}</datalist>
         <div class="field"><label>Uso relacionado</label><select id="eDetFuelUse">${(DB.categories.fuelUseType||['Viaje','Otro']).map(x=>`<option ${x===(detalle.uso||'Viaje')?'selected':''}>${esc(x)}</option>`).join('')}</select></div>
-        <div class="field"><label>Galones (para rendimiento)</label><input type="number" inputmode="decimal" id="eGalones" value="${detalle.galones||''}" placeholder="opcional"></div>
-        <div class="fuel-gauge-row">
+        <div class="field"><label>Galones comprados</label><input type="number" inputmode="decimal" id="eGalones" value="${detalle.galones||''}" placeholder="ej. 13.33"></div>
+        <div id="eFuelPrice" class="field-hint">Ingresa monto y galones para calcular el precio por galón.</div>
+        <div class="measurement-toggle"><input type="checkbox" id="eFuelMeasured" ${detalle.medicionConfirmada?'checked':''}><label for="eFuelMeasured">Tengo medición del tanque antes y después</label></div>
+        <div id="eFuelGaugeWrap" class="${detalle.medicionConfirmada?'':'hidden'}"><div class="fuel-gauge-row">
           ${fuelGaugeHtml('eFgBefore','Tanque antes')}
           ${fuelGaugeHtml('eFgAfter','Tanque después')}
-        </div>
-        <div class="field-hint">"Tanque antes" viene del ultimo registro conocido, pero puedes editarlo si usaste el camion entre dias.</div>`;
+        </div></div>
+        <div class="field-hint">El nivel anterior se propone desde el último registro, pero siempre puedes corregirlo.</div>`;
     case 'Peajes':
       return `
         <div class="field"><label>Zona / Peaje</label><input type="text" id="eDetZona" value="${esc(detalle.zona||'')}" placeholder="ej. Peaje Boliche"></div>
@@ -1875,11 +2099,11 @@ function expenseDetailFieldsHtml(categoria, detalle){
   }
 }
 function expenseFormHtml(e){
-  e = e || {fecha:todayISO(), categoria:DB.categories.expenseCategory[0].nombre, monto:'', metodoPago:'Efectivo', nota:'', detalle:{}};
+  e = e || {fecha:todayISO(), hora:new Date().toTimeString().slice(0,5), categoria:DB.categories.expenseCategory[0].nombre, monto:'', metodoPago:'Efectivo', nota:'', detalle:{}};
   return `
     <input type="hidden" id="expId" value="${e.id||''}">
     ${e.id?`<button type="button" class="btn btn-danger btn-sm" data-action="delete-expense" data-id="${e.id}" style="margin-bottom:12px;">🗑 Eliminar gasto</button>`:''}
-    <div class="field"><label>Fecha</label><input type="date" id="eFecha" value="${e.fecha}"></div>
+    <div class="field-row"><div class="field"><label>Fecha</label><input type="date" id="eFecha" value="${e.fecha}"></div><div class="field"><label>Hora aproximada</label><input type="time" id="eHora" value="${e.hora||'12:00'}"></div></div>
     <div class="field"><label>Categoría</label><select id="eCategoria">${expenseCategoryOptionsHtml(e.categoria)}</select></div>
     <div class="cactus-add">
       <input type="text" id="eCactusNueva" placeholder="¿No está en la lista? Escribe una nueva categoría">
@@ -1887,13 +2111,13 @@ function expenseFormHtml(e){
     </div>
     <div class="field"><label>Monto</label><input type="number" inputmode="decimal" id="eMonto" placeholder="0.00" value="${e.monto}"></div>
     <div class="field"><label>Método de pago</label><select id="eMetodo">${payMethodOptionsHtml(e.metodoPago)}</select></div>
-    <div id="eDetalleFields">${expenseDetailFieldsHtml(e.categoria, e.detalle)}</div>
+    <div id="eDetalleFields">${expenseDetailFieldsHtml(e.categoria, Object.assign({},e.detalle||{},{galones:e.galones}))}</div>
     <div class="field"><label>Nota</label><input type="text" id="eNota" placeholder="opcional" value="${esc(e.nota||'')}"></div>
   `;
 }
 function openExpenseForm(id){
   const e = id ? DB.expenses.find(x=>x.id===id) : null;
-  openModal(e? 'Editar gasto' : 'Nuevo gasto', expenseFormHtml(e),
+  openModal(e? 'Editar costo o egreso' : 'Nuevo costo o egreso', expenseFormHtml(e),
     `<button class="btn btn-secondary" data-action="close-modal">Cancelar</button>
      <button class="btn btn-primary" data-action="save-expense">${e?'Guardar':'Registrar gasto'}</button>`);
   wireExpenseFormInteractivity();
@@ -1921,6 +2145,16 @@ function wireExpenseSegments(){
     const current = afterGauge.dataset.value ? Number(afterGauge.dataset.value) : lastKnownTankLevel();
     wireFuelGauge('eFgAfter', current);
   }
+  const measured=document.getElementById('eFuelMeasured');
+  if(measured)measured.addEventListener('change',()=>document.getElementById('eFuelGaugeWrap').classList.toggle('hidden',!measured.checked));
+  const updatePrice=()=>{
+    const monto=Number((document.getElementById('eMonto')||{}).value)||0;
+    const gal=Number((document.getElementById('eGalones')||{}).value)||0;
+    const out=document.getElementById('eFuelPrice');
+    if(out)out.textContent=gal>0?`Precio calculado: ${fmtMoney(monto/gal)} por galón`:'Ingresa monto y galones para calcular el precio por galón.';
+  };
+  ['eMonto','eGalones'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',updatePrice);});
+  updatePrice();
 }
 function cactusAddCategory(){
   const input = document.getElementById('eCactusNueva');
@@ -1942,8 +2176,9 @@ function readExpenseDetalle(categoria){
       d.gasolinera = (document.getElementById('eDetGasolinera')||{}).value || '';
       if (d.gasolinera) addCactusCategory('gasStation', d.gasolinera);
       d.uso = (document.getElementById('eDetFuelUse')||{}).value || 'Viaje';
-      d.tankBefore = Number((document.getElementById('eFgBefore')||{}).dataset?.value ?? lastKnownTankLevel());
-      d.tankAfter = Number((document.getElementById('eFgAfter')||{}).dataset?.value ?? d.tankBefore);
+      d.medicionConfirmada = !!(document.getElementById('eFuelMeasured')||{}).checked;
+      d.tankBefore = d.medicionConfirmada ? Number((document.getElementById('eFgBefore')||{}).dataset?.value ?? lastKnownTankLevel()) : null;
+      d.tankAfter = d.medicionConfirmada ? Number((document.getElementById('eFgAfter')||{}).dataset?.value ?? d.tankBefore) : null;
       break;
     case 'Peajes':
       d.zona = (document.getElementById('eDetZona')||{}).value || '';
@@ -2016,7 +2251,7 @@ function saveExpenseFromForm(){
   const detalle = readExpenseDetalle(categoria);
   const galonesEl = document.getElementById('eGalones');
   const data = {
-    fecha, anio: meta.anio, mes: meta.mes, semana: meta.semana,
+    fecha, hora:document.getElementById('eHora').value||'12:00', anio: meta.anio, mes: meta.mes, semana: meta.semana,
     categoria, monto,
     metodoPago: document.getElementById('eMetodo').value,
     galones: galonesEl && galonesEl.value ? Number(galonesEl.value) : null,
@@ -2094,10 +2329,10 @@ function renderGastos(){
       <div class="stat-card"><div class="lbl">Camión</div><div class="val neg">-${fmtMoney(camion)}</div></div>
       <div class="stat-card"><div class="lbl">Casa / Personal</div><div class="val neg">-${fmtMoney(personal)}</div></div>
     </div>
-    <div class="field-hint" style="margin-top:-6px;">Estos son gastos sueltos. Los costos en ruta de cada viaje (diésel, peaje, comida, carguero) se registran dentro del viaje.</div>
+    <div class="field-hint" style="margin-top:-6px;">Las cargas de diésel se registran aquí como COSTO del camión. Peajes, comida y otros costos directos se registran dentro del viaje.</div>
     <div class="view-title">Gastos del periodo<span class="mono">-${fmtMoney(camion+personal)}</span></div>
     ${listHtml}
-    <button class="fab" data-action="new-expense" aria-label="Nuevo gasto">+</button>
+    <button class="fab" data-action="new-expense" aria-label="Nuevo costo o egreso">+</button>
   `;
 }
 
@@ -2206,6 +2441,7 @@ function openComisionForm(){
    OTROS INGRESOS, CUENTAS PERSONALES Y RUEDAS
    ============================================================ */
 function methodIsBank(m){ return m==='Transferencia' || m==='Tarjeta'; }
+function incomeIsOpeningBalance(i){ return i && i.categoria==='Saldo inicial'; }
 function incomeCategoryOptionsHtml(selected){ return (DB.categories.incomeCategory||[]).map(c=>`<option ${c===selected?'selected':''}>${esc(c)}</option>`).join(''); }
 function openIncomeForm(id){
   const i = id ? DB.incomes.find(x=>x.id===id) : null;
@@ -2214,7 +2450,8 @@ function openIncomeForm(id){
     <input type="hidden" id="incId" value="${item.id||''}">
     ${i?`<button type="button" class="btn btn-danger btn-sm" data-action="delete-income" data-id="${i.id}" style="margin-bottom:12px;">Eliminar ingreso</button>`:''}
     <div class="field"><label>Fecha</label><input type="date" id="incFecha" value="${item.fecha}"></div>
-    <div class="field"><label>Categoria</label><select id="incCategoria">${incomeCategoryOptionsHtml(item.categoria)}</select></div>
+    <div class="field"><label>Categoría</label><select id="incCategoria">${incomeCategoryOptionsHtml(item.categoria)}</select></div>
+    <div class="hint">Usa <b>Saldo inicial</b> únicamente para registrar dinero que ya tenías antes de empezar a usar SANVI. Aumenta tu efectivo o banco, pero no cuenta como ganancia.</div>
     <div class="field"><label>Origen / persona</label><input type="text" id="incOrigen" value="${esc(item.origen||'')}" placeholder="ej. Familia Espana"></div>
     <div class="field"><label>Monto recibido</label><input type="number" inputmode="decimal" id="incMonto" value="${item.monto||''}" placeholder="0.00"></div>
     <div class="field"><label>Metodo</label><select id="incMetodo">${payMethodOptionsHtml(item.metodo||'Transferencia')}</select></div>
@@ -2235,11 +2472,18 @@ function saveIncomeFromForm(){
 function confirmDeleteIncome(id){ openModal('Eliminar ingreso', '<p>Seguro que quieres eliminar este ingreso?</p>', `<button class="btn btn-secondary" data-action="close-modal">Cancelar</button><button class="btn btn-danger" data-action="do-delete-income" data-id="${id}">Eliminar</button>`); }
 function deleteIncome(id){ markPendingDelete('incomes',id); DB.incomes=DB.incomes.filter(x=>x.id!==id); saveDB(); closeModal(); showToast('Ingreso eliminado'); render(); }
 function renderIngresosExtra(){
-  const items=(DB.incomes||[]).filter(inPeriod).sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const items=(DB.incomes||[]).filter(i=>inPeriod(i) && !incomeIsOpeningBalance(i)).sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const saldos=(DB.incomes||[]).filter(incomeIsOpeningBalance).sort((a,b)=>b.fecha.localeCompare(a.fecha));
   const total=round2(items.reduce((s,i)=>s+i.monto,0));
+  const saldoEfectivo=round2(saldos.filter(i=>!methodIsBank(i.metodo)).reduce((s,i)=>s+i.monto,0));
+  const saldoBanco=round2(saldos.filter(i=>methodIsBank(i.metodo)).reduce((s,i)=>s+i.monto,0));
   return `<div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">&lsaquo;</button><h3>Otros ingresos</h3></div>
-    <div class="hero-card"><div class="hero-label">Ingresos no ligados a viajes</div><div class="hero-value pos">${fmtMoney(total)}</div><div class="hero-sub">Familia, cobros y entradas ocasionales</div></div>
-    ${items.length?`<div class="list">${items.map(i=>`<div class="row" data-action="edit-income" data-id="${i.id}"><div class="r-main"><div class="r-title">${esc(i.origen||i.categoria)}</div><div class="r-sub">${fmtDateShort(i.fecha)} - ${esc(i.categoria)} - ${i.metodo}</div></div><div class="r-val pos">${fmtMoney(i.monto)}</div></div>`).join('')}</div>`:'<div class="empty"><b>Sin otros ingresos</b>Registra entradas que no sean viajes.</div>'}
+    <div class="hero-card"><div class="hero-label">Ingresos reales del periodo</div><div class="hero-value pos">${fmtMoney(total)}</div><div class="hero-sub">Estos sí afectan la utilidad del periodo seleccionado</div></div>
+    ${saldos.length?`<div class="view-title">Saldo inicial histórico<span class="mono">${fmtMoney(saldoEfectivo+saldoBanco)}</span></div>
+      <div class="card"><div class="computed-line"><span>Efectivo inicial</span><b>${fmtMoney(saldoEfectivo)}</b></div><div class="computed-line"><span>Banco inicial</span><b>${fmtMoney(saldoBanco)}</b></div></div>
+      <div class="list">${saldos.map(i=>`<div class="row" data-action="edit-income" data-id="${i.id}"><div class="r-main"><div class="r-title">${esc(i.origen||'Saldo inicial')} <span class="mini-badge info">SALDO INICIAL</span></div><div class="r-sub">${fmtDateShort(i.fecha)} - ${i.metodo}</div></div><div class="r-val">${fmtMoney(i.monto)}</div></div>`).join('')}</div>`:''}
+    <div class="view-title">Ingresos del periodo</div>
+    ${items.length?`<div class="list">${items.map(i=>`<div class="row" data-action="edit-income" data-id="${i.id}"><div class="r-main"><div class="r-title">${esc(i.origen||i.categoria)}</div><div class="r-sub">${fmtDateShort(i.fecha)} - ${esc(i.categoria)} - ${i.metodo}</div></div><div class="r-val pos">${fmtMoney(i.monto)}</div></div>`).join('')}</div>`:'<div class="empty"><b>Sin otros ingresos en este periodo</b>Los saldos iniciales permanecen visibles arriba.</div>'}
     <button class="fab" data-action="new-income">+</button>`;
 }
 function receivablePaid(r){ return round2((r.pagos||[]).reduce((s,p)=>s+p.monto,0)); }
@@ -2274,13 +2518,48 @@ function confirmDeleteReceivable(id){ openModal('Eliminar cuenta', '<p>Seguro qu
 function deleteReceivable(id){ markPendingDelete('receivables',id); DB.receivables=DB.receivables.filter(x=>x.id!==id); saveDB(); closeModal(); showToast('Cuenta eliminada'); render(); }
 function renderCuentasPersonales(){ const items=(DB.receivables||[]).sort((a,b)=>(a.estado==='pendiente'?0:1)-(b.estado==='pendiente'?0:1)||b.fecha.localeCompare(a.fecha)); const total=round2(items.reduce((s,r)=>s+receivableSaldo(r),0)); return `<div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">&lsaquo;</button><h3>Cuentas personales</h3></div><div class="hero-card"><div class="hero-label">Te deben fuera de viajes</div><div class="hero-value ${total>0?'neg':''}">${fmtMoney(total)}</div><div class="hero-sub">Prestamos y cobros personales</div></div>${items.length?`<div class="list">${items.map(r=>`<div class="row" style="flex-wrap:wrap;"><div class="r-main" data-action="edit-receivable" data-id="${r.id}"><div class="r-title">${esc(r.persona||'Sin persona')}</div><div class="r-sub">${esc(r.concepto||'Cuenta personal')} - ${r.estado==='pagada'?'Pagada':'Saldo '+fmtMoney(receivableSaldo(r))}</div></div><div class="r-val ${receivableSaldo(r)>0?'neg':'pos'}">${fmtMoney(receivableSaldo(r))}</div>${receivableSaldo(r)>0?`<button class="btn btn-secondary btn-sm" data-action="pay-receivable" data-id="${r.id}">Pagar</button>`:''}</div>`).join('')}</div>`:'<div class="empty"><b>Sin cuentas personales</b>Registra personas que te deben fuera de viajes.</div>'}<button class="fab" data-action="new-receivable">+</button>`; }
 function fundExpectedWeekly(f){ return round2((Number(f.aportePorNumero)||0) * (String(f.numeros||'').split(',').map(x=>x.trim()).filter(Boolean).length || Number(f.cantidadNumerosPropios)||1)); }
-function openFundForm(id){ const f=id?DB.rotatingFunds.find(x=>x.id===id):null; const item=f||{nombre:'',fechaInicio:todayISO(),totalNumeros:14,numeros:'',aportePorNumero:30,frecuencia:'semanal',nota:''}; openModal(f?'Editar rueda':'Nueva rueda', `<input type="hidden" id="fundId" value="${item.id||''}">${f?`<button type="button" class="btn btn-danger btn-sm" data-action="delete-fund" data-id="${f.id}" style="margin-bottom:12px;">Eliminar rueda</button>`:''}<div class="field"><label>Nombre</label><input type="text" id="fundNombre" value="${esc(item.nombre||'')}" placeholder="ej. Rueda familia"></div><div class="field-row"><div class="field"><label>Fecha inicio</label><input type="date" id="fundFecha" value="${item.fechaInicio}"></div><div class="field"><label>Total numeros</label><input type="number" id="fundTotal" value="${item.totalNumeros||14}"></div></div><div class="field"><label>Tus numeros</label><input type="text" id="fundNumeros" value="${esc(item.numeros||'')}" placeholder="ej. 4,5"></div><div class="field"><label>Aporte por numero</label><input type="number" inputmode="decimal" id="fundAporte" value="${item.aportePorNumero||30}"></div><div class="field"><label>Nota</label><input type="text" id="fundNota" value="${esc(item.nota||'')}"></div>`, `<button class="btn btn-secondary" data-action="close-modal">Cancelar</button><button class="btn btn-primary" data-action="save-fund">Guardar</button>`); }
-function saveFundFromForm(){ const id=document.getElementById('fundId').value; const data={nombre:document.getElementById('fundNombre').value.trim(),fechaInicio:document.getElementById('fundFecha').value||todayISO(),totalNumeros:Number(document.getElementById('fundTotal').value)||14,numeros:document.getElementById('fundNumeros').value.trim(),aportePorNumero:Number(document.getElementById('fundAporte').value)||0,frecuencia:'semanal',nota:document.getElementById('fundNota').value.trim(),estado:'activa'}; if(!data.nombre){showToast('Ingresa nombre');return;} if(id){const f=DB.rotatingFunds.find(x=>x.id===id); if(!f)return; Object.assign(f,data); f.updatedAt=nowISO();} else {data.id=uuid(); data.aportes=[]; data.cobros=[]; data.createdAt=nowISO(); data.updatedAt=nowISO(); DB.rotatingFunds.push(data);} saveDB(); closeModal(); showToast('Rueda guardada'); render(); }
+function fundPaidTotal(f){ return round2((f.aportes||[]).reduce((s,a)=>s+(Number(a.monto)||0),0)); }
+function fundBasePendingWeeks(f){ return f.modoRegistro==='pendiente' ? Math.max(0,Number(f.cuotasPendientesAlRegistrar)||0) : Math.max(0,Number(f.totalNumeros)||0); }
+function fundPaidWeeks(f){ const weekly=fundExpectedWeekly(f); return weekly>0 ? Math.min(fundBasePendingWeeks(f), Math.floor((fundPaidTotal(f)+0.001)/weekly)) : 0; }
+function fundPendingWeeks(f){ return Math.max(0,fundBasePendingWeeks(f)-fundPaidWeeks(f)); }
+function fundPendingAmount(f){ return round2(fundPendingWeeks(f)*fundExpectedWeekly(f)); }
+function openFundForm(id){
+  const f=id?DB.rotatingFunds.find(x=>x.id===id):null;
+  const item=f||{nombre:'',fechaInicio:todayISO(),totalNumeros:14,numeros:'',aportePorNumero:30,frecuencia:'semanal',modoRegistro:'completa',cuotasPendientesAlRegistrar:14,cobroYaRecibido:false,nota:''};
+  openModal(f?'Editar rueda':'Nueva rueda', `
+    <input type="hidden" id="fundId" value="${item.id||''}">
+    ${f?`<button type="button" class="btn btn-danger btn-sm" data-action="delete-fund" data-id="${f.id}" style="margin-bottom:12px;">Eliminar rueda</button>`:''}
+    <div class="field"><label>Nombre</label><input type="text" id="fundNombre" value="${esc(item.nombre||'')}" placeholder="ej. Rueda familia"></div>
+    <div class="field"><label>Cómo deseas comenzar</label><select id="fundModo">
+      <option value="completa" ${item.modoRegistro!=='pendiente'?'selected':''}>Rueda nueva - registrar ciclo completo</option>
+      <option value="pendiente" ${item.modoRegistro==='pendiente'?'selected':''}>Rueda empezada - registrar solo lo pendiente</option>
+    </select></div>
+    <div class="field-row"><div class="field"><label>Fecha de registro</label><input type="date" id="fundFecha" value="${item.fechaInicio}"></div><div class="field"><label>Total de semanas/números</label><input type="number" id="fundTotal" value="${item.totalNumeros||14}"></div></div>
+    <div class="field"><label>Tus números</label><input type="text" id="fundNumeros" value="${esc(item.numeros||'')}" placeholder="ej. 4,5"></div>
+    <div class="field"><label>Aporte por cada número</label><input type="number" inputmode="decimal" id="fundAporte" value="${item.aportePorNumero||30}"></div>
+    <div class="field"><label>Cuotas semanales que faltan desde hoy</label><input type="number" id="fundPendientes" value="${item.cuotasPendientesAlRegistrar!=null?item.cuotasPendientesAlRegistrar:item.totalNumeros||14}"></div>
+    <div class="field"><label><input type="checkbox" id="fundCobroPrevio" ${item.cobroYaRecibido?'checked':''}> Ya recibí mi turno antes de registrar esta rueda</label></div>
+    <div class="hint">Si ya cobraste, SANVI no volverá a sumar ese dinero. La rueda seguirá activa hasta pagar todas las cuotas pendientes.</div>
+    <div class="field"><label>Nota</label><input type="text" id="fundNota" value="${esc(item.nota||'')}"></div>
+  `, `<button class="btn btn-secondary" data-action="close-modal">Cancelar</button><button class="btn btn-primary" data-action="save-fund">Guardar</button>`);
+}
+function saveFundFromForm(){
+  const id=document.getElementById('fundId').value;
+  const modoRegistro=document.getElementById('fundModo').value;
+  const totalNumeros=Math.max(1,Number(document.getElementById('fundTotal').value)||14);
+  const data={nombre:document.getElementById('fundNombre').value.trim(),fechaInicio:document.getElementById('fundFecha').value||todayISO(),totalNumeros,numeros:document.getElementById('fundNumeros').value.trim(),aportePorNumero:Number(document.getElementById('fundAporte').value)||0,frecuencia:'semanal',modoRegistro,cuotasPendientesAlRegistrar:modoRegistro==='pendiente'?Math.max(0,Number(document.getElementById('fundPendientes').value)||0):totalNumeros,cobroYaRecibido:document.getElementById('fundCobroPrevio').checked,nota:document.getElementById('fundNota').value.trim(),estado:'activa'};
+  if(!data.nombre){showToast('Ingresa nombre');return;}
+  if(!data.numeros){showToast('Ingresa tus números');return;}
+  if(data.aportePorNumero<=0){showToast('Ingresa el aporte por número');return;}
+  if(id){const f=DB.rotatingFunds.find(x=>x.id===id); if(!f)return; Object.assign(f,data); f.estado=fundPendingWeeks(f)<=0?'cerrada':'activa'; f.updatedAt=nowISO();}
+  else {data.id=uuid(); data.aportes=[]; data.cobros=[]; data.createdAt=nowISO(); data.updatedAt=nowISO(); DB.rotatingFunds.push(data);}
+  saveDB(); closeModal(); showToast('Rueda guardada'); render();
+}
 function openFundMovementForm(id,tipo){ const f=DB.rotatingFunds.find(x=>x.id===id); if(!f)return; const monto=tipo==='aporte'?fundExpectedWeekly(f):''; openModal(tipo==='aporte'?'Registrar aporte':'Registrar cobro', `<input type="hidden" id="fundMovId" value="${id}"><input type="hidden" id="fundMovTipo" value="${tipo}"><div class="field"><label>Fecha</label><input type="date" id="fundMovFecha" value="${todayISO()}"></div><div class="field"><label>Monto</label><input type="number" inputmode="decimal" id="fundMovMonto" value="${monto}"></div><div class="field"><label>Metodo</label><select id="fundMovMetodo">${payMethodOptionsHtml('Efectivo')}</select></div>`, `<button class="btn btn-secondary" data-action="close-modal">Cancelar</button><button class="btn btn-primary" data-action="save-fund-movement">Guardar</button>`); }
-function saveFundMovement(){ const id=document.getElementById('fundMovId').value; const f=DB.rotatingFunds.find(x=>x.id===id); if(!f)return; const tipo=document.getElementById('fundMovTipo').value; const monto=Number(document.getElementById('fundMovMonto').value)||0; if(monto<=0){showToast('Ingresa monto');return;} const item={id:uuid(),fecha:document.getElementById('fundMovFecha').value||todayISO(),monto,metodo:document.getElementById('fundMovMetodo').value}; if(tipo==='aporte'){ if(!Array.isArray(f.aportes))f.aportes=[]; f.aportes.push(item);} else { if(!Array.isArray(f.cobros))f.cobros=[]; f.cobros.push(item);} f.updatedAt=nowISO(); saveDB(); closeModal(); showToast('Movimiento registrado'); render(); }
+function saveFundMovement(){ const id=document.getElementById('fundMovId').value; const f=DB.rotatingFunds.find(x=>x.id===id); if(!f)return; const tipo=document.getElementById('fundMovTipo').value; const monto=Number(document.getElementById('fundMovMonto').value)||0; if(monto<=0){showToast('Ingresa monto');return;} if(tipo==='aporte' && fundPendingWeeks(f)<=0){showToast('Esta rueda ya no tiene cuotas pendientes');return;} const item={id:uuid(),fecha:document.getElementById('fundMovFecha').value||todayISO(),monto,metodo:document.getElementById('fundMovMetodo').value}; if(tipo==='aporte'){ if(!Array.isArray(f.aportes))f.aportes=[]; f.aportes.push(item);} else { if(!Array.isArray(f.cobros))f.cobros=[]; f.cobros.push(item);} f.estado=fundPendingWeeks(f)<=0?'cerrada':'activa'; f.updatedAt=nowISO(); saveDB(); closeModal(); showToast(tipo==='aporte'?'Aporte registrado; pendiente actualizado':'Cobro registrado'); render(); }
 function confirmDeleteFund(id){ openModal('Eliminar rueda','<p>Seguro que quieres eliminar esta rueda?</p>',`<button class="btn btn-secondary" data-action="close-modal">Cancelar</button><button class="btn btn-danger" data-action="do-delete-fund" data-id="${id}">Eliminar</button>`); }
 function deleteFund(id){ markPendingDelete('rotatingFunds',id); DB.rotatingFunds=DB.rotatingFunds.filter(x=>x.id!==id); saveDB(); closeModal(); showToast('Rueda eliminada'); render(); }
-function renderRuedas(){ const items=DB.rotatingFunds||[]; return `<div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">&lsaquo;</button><h3>Ruedas</h3></div>${items.length?`<div class="list">${items.map(f=>{const aportado=round2((f.aportes||[]).reduce((s,a)=>s+a.monto,0)); const cobrado=round2((f.cobros||[]).reduce((s,c)=>s+c.monto,0)); return `<div class="row" style="flex-wrap:wrap;"><div class="r-main" data-action="edit-fund" data-id="${f.id}"><div class="r-title">${esc(f.nombre)}</div><div class="r-sub">Numeros ${esc(f.numeros||'-')} - aporte semanal ${fmtMoney(fundExpectedWeekly(f))} - aportado ${fmtMoney(aportado)} - cobrado ${fmtMoney(cobrado)}</div></div><button class="btn btn-secondary btn-sm" data-action="fund-aporte" data-id="${f.id}">Aporte</button><button class="btn btn-primary btn-sm" data-action="fund-cobro" data-id="${f.id}">Cobro</button></div>`}).join('')}</div>`:'<div class="empty"><b>Sin ruedas</b>Registra fondos rotativos o ruedas semanales.</div>'}<button class="fab" data-action="new-fund">+</button>`; }
+function renderRuedas(){ const items=DB.rotatingFunds||[]; return `<div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">&lsaquo;</button><h3>Ruedas</h3></div>${items.length?`<div class="list">${items.map(f=>{const aportado=fundPaidTotal(f); const cobrado=round2((f.cobros||[]).reduce((s,c)=>s+c.monto,0)); const pendientes=fundPendingWeeks(f); return `<div class="row" style="flex-wrap:wrap;"><div class="r-main" data-action="edit-fund" data-id="${f.id}"><div class="r-title">${esc(f.nombre)} <span class="mini-badge ${pendientes?'info':'pagado'}">${pendientes?'ACTIVA':'COMPLETADA'}</span></div><div class="r-sub">Números ${esc(f.numeros||'-')} · semanal ${fmtMoney(fundExpectedWeekly(f))} · faltan ${pendientes} cuotas (${fmtMoney(fundPendingAmount(f))}) · aportado desde registro ${fmtMoney(aportado)}${f.cobroYaRecibido?' · turno ya recibido':` · cobrado ${fmtMoney(cobrado)}`}</div></div>${pendientes?`<button class="btn btn-secondary btn-sm" data-action="fund-aporte" data-id="${f.id}">Pagar cuota</button>`:''}${!f.cobroYaRecibido?`<button class="btn btn-primary btn-sm" data-action="fund-cobro" data-id="${f.id}">Registrar cobro</button>`:''}</div>`}).join('')}</div>`:'<div class="empty"><b>Sin ruedas</b>Registra fondos rotativos o ruedas semanales.</div>'}<button class="fab" data-action="new-fund">+</button>`; }
 
 /* ============================================================
    PRODUCTORES (MINI-CRM)
@@ -2721,8 +3000,7 @@ function renderCommitmentRowInner(c){
    MANTENIMIENTO PREVENTIVO POR KILOMETRAJE
    ============================================================ */
 function kmActual(){
-  const vals = DB.trips.filter(t=>t.kmFinal!=null).map(t=>t.kmFinal);
-  return vals.length ? Math.max(...vals) : 0;
+  return round2((DB.trips||[]).reduce((s,t)=>s+(t.rutaCalculada?Number(t.rutaCalculada.distanceKm)||0:0),0));
 }
 function maintenanceStatus(m){
   const actual = kmActual();
@@ -2787,7 +3065,7 @@ function renderMantenimiento(){
   const items = DB.maintenance;
   return `
     <div class="subview-head"><button class="back-btn" data-action="go-back" data-back="mas">‹</button><h3>Mantenimiento</h3></div>
-    <div class="stat-card"><div class="lbl">Kilometraje actual (odómetro)</div><div class="val">${actual.toLocaleString('es-EC')} km</div><div class="sub">Calculado del km final más alto registrado en viajes</div></div>
+    <div class="stat-card"><div class="lbl">Kilometraje acumulado estimado</div><div class="val">${actual.toLocaleString('es-EC')} km</div><div class="sub">Suma de rutas calculadas en los viajes; no incluye uso personal del camión</div></div>
     ${items.length===0?'<div class="empty"><b>Sin alertas configuradas</b>Crea alertas tipo "cambio de aceite cada 5,000 km".</div>':
       `<div class="list">` + items.map(m=>{
         const st = maintenanceStatus(m);
@@ -2820,31 +3098,31 @@ function computeAvgMonthlyIncome(){
   return round2(total/3);
 }
 function computeRendimientoActual(trips, expenses){
-  const km = trips.filter(t=>t.kmInicial!=null && t.kmFinal!=null).reduce((s,t)=>s+(t.kmFinal-t.kmInicial),0);
-  const gal = expenses.filter(e=>e.categoria==='Combustible' && e.galones).reduce((s,e)=>s+e.galones,0);
+  const measured=trips.filter(t=>t.rutaCalculada&&tripConsumoGalonesMedido(t)!=null);
+  const km=measured.reduce((s,t)=>s+(Number(t.rutaCalculada.distanceKm)||0),0);
+  const gal=measured.reduce((s,t)=>s+(tripConsumoGalonesMedido(t)||0),0);
   return gal>0 ? round2(km/gal) : null;
 }
 function computeRendimientoHistorico(periodosAtras){
   const periods = lastNPeriods(periodosAtras+1).slice(0,-1); // excluye el actual
   let km=0, gal=0;
   periods.forEach(p=>{
-    const trips = DB.trips.filter(t=>inPeriodCustom(t,p.anio,p.semana,p.mes) && t.kmInicial!=null && t.kmFinal!=null);
-    const exps = DB.expenses.filter(e=>inPeriodCustom(e,p.anio,p.semana,p.mes) && e.categoria==='Combustible' && e.galones);
-    km += trips.reduce((s,t)=>s+(t.kmFinal-t.kmInicial),0);
-    gal += exps.reduce((s,e)=>s+e.galones,0);
+    const trips = DB.trips.filter(t=>inPeriodCustom(t,p.anio,p.semana,p.mes) && t.rutaCalculada && tripConsumoGalonesMedido(t)!=null);
+    km += trips.reduce((s,t)=>s+(Number(t.rutaCalculada.distanceKm)||0),0);
+    gal += trips.reduce((s,t)=>s+(tripConsumoGalonesMedido(t)||0),0);
   });
   return gal>0 ? round2(km/gal) : null;
 }
 
-// Rentabilidad real de un mes calendario (item 29): utilidad de viajes − egresos fijos − cuotas
-// compañía − deudas que vencen ese mes = lo que realmente queda.
+// Resultado mensual exclusivo del camión. Los gastos y deudas personales se muestran aparte.
 function rentabilidadRealMes(anio, mes){
   const trips = DB.trips.filter(t=>t.anio===anio && t.mes===mes);
   const expenses = DB.expenses.filter(e=>e.anio===anio && e.mes===mes);
   const utilidadViajes = periodUtilidadNetaViajes(trips);
   const cuotasCompania = round2(expenses.filter(e=>e.categoria==='Cuota Compañía').reduce((s,e)=>s+e.monto,0));
-  const egresosFijos = round2(expenses.filter(e=>expenseTipo(e.categoria)==='egreso' && e.categoria!=='Cuota Compañía' && e.categoria!=='Préstamos y Deudas').reduce((s,e)=>s+e.monto,0));
+  const egresosFijos = round2(expenses.filter(e=>expenseGrupo(e.categoria)==='camion' && expenseTipo(e.categoria)==='egreso' && e.categoria!=='Cuota Compañía').reduce((s,e)=>s+e.monto,0));
   const deudasVencenMes = round2(DB.commitments.filter(c=>c.tipo==='deuda' && c.estado==='activo' &&
+    expenseGrupo(c.categoriaGasto)==='camion' &&
     (()=>{ const d=parseISO(c.fechaProximoPago); return d.getFullYear()===anio && d.getMonth()+1===mes; })()
   ).reduce((s,c)=>s+(c.monto||0),0));
   const moraPerdida = totalMoraPerdidaPeriodo(anio, mes);
@@ -2876,7 +3154,7 @@ function totalCuentasPersonalesVencidas(){
 }
 
 function flujoComplementarioPeriodo(){
-  const ingresosExtra = round2((DB.incomes||[]).filter(inPeriod).reduce((s,i)=>s+(i.monto||0),0));
+  const ingresosExtra = round2((DB.incomes||[]).filter(i=>inPeriod(i) && !incomeIsOpeningBalance(i)).reduce((s,i)=>s+(i.monto||0),0));
   const prestamosEntregados = round2((DB.receivables||[]).filter(inPeriod).reduce((s,r)=>s+(r.monto||0),0));
   const cobrosPersonales = round2((DB.receivables||[]).reduce((s,r)=>s+(r.pagos||[]).filter(p=>fechaEnPeriodo(p.fecha)).reduce((a,p)=>a+(p.monto||0),0),0));
   const aportesRueda = round2((DB.rotatingFunds||[]).reduce((s,f)=>s+(f.aportes||[]).filter(a=>fechaEnPeriodo(a.fecha)).reduce((a,x)=>a+(x.monto||0),0),0));
@@ -2885,7 +3163,42 @@ function flujoComplementarioPeriodo(){
 }
 
 function aportesRuedaProximoMesEstimado(){
-  return round2((DB.rotatingFunds||[]).filter(f=>f.estado!=='cerrada').reduce((s,f)=>s+fundExpectedWeekly(f)*4,0));
+  return round2((DB.rotatingFunds||[]).filter(f=>f.estado!=='cerrada').reduce((s,f)=>s+fundExpectedWeekly(f)*Math.min(4,fundPendingWeeks(f)),0));
+}
+
+function truckCashFlowPeriod(){
+  let entradas=0,salidas=0;
+  (DB.trips||[]).forEach(t=>{
+    if(fechaEnPeriodo(t.fecha)) entradas+=Number(t.anticipo)||0;
+    if(t.estado==='cobrado' && fechaEnPeriodo(t.fechaCobro||t.fecha)){
+      entradas+=Math.max(0,tripSaldoPendiente(Object.assign({},t,{estado:'por_cobrar'})));
+      salidas+=costoFacturaTrip(t);
+    }
+    if(fechaEnPeriodo(t.fecha)) salidas+=costosRutaSinDiesel(t);
+    if(t.carguero&&t.carguero.pagado&&fechaEnPeriodo(t.carguero.fechaPago||t.fecha)) salidas+=cargueroMontoTrip(t);
+  });
+  (DB.expenses||[]).filter(e=>inPeriod(e)&&expenseGrupo(e.categoria)==='camion').forEach(e=>salidas+=Number(e.monto)||0);
+  return {entradas:round2(entradas),salidas:round2(salidas),neto:round2(entradas-salidas)};
+}
+function historicalTripAverages(){
+  const trips=(DB.trips||[]).filter(t=>Number(t.valorFlete)>0).sort((a,b)=>eventDateTime(b)-eventDateTime(a)).slice(0,12);
+  if(trips.length<3)return null;
+  return {
+    count:trips.length,
+    net:round2(trips.reduce((s,t)=>s+tripUtilidadNeta(t),0)/trips.length),
+    gross:round2(trips.reduce((s,t)=>s+tripIngresoBruto(t),0)/trips.length)
+  };
+}
+function personalWorkRecommendation(utilidadCamion,gastoPersonal,flujoExtra){
+  const ruedaAportes=(DB.rotatingFunds||[]).reduce((s,f)=>s+(f.aportes||[]).filter(a=>fechaEnPeriodo(a.fecha)).reduce((a,x)=>a+(Number(x.monto)||0),0),0);
+  const ruedaPendientePeriodo=(DB.rotatingFunds||[]).filter(f=>f.estado!=='cerrada'&&fundPendingWeeks(f)>0&&!(f.aportes||[]).some(a=>fechaEnPeriodo(a.fecha))).reduce((s,f)=>s+fundExpectedWeekly(f),0);
+  const compromisosPersonales=(DB.commitments||[]).filter(c=>c.estado==='activo'&&expenseGrupo(c.categoriaGasto)==='personal'&&fechaEnPeriodo(c.fechaProximoPago)).reduce((s,c)=>s+(Number(c.monto)||0),0);
+  const necesidad=round2(gastoPersonal+ruedaAportes+ruedaPendientePeriodo+compromisosPersonales);
+  const apoyo=round2(Math.max(0,utilidadCamion)+(flujoExtra.ingresosExtra||0)+(flujoExtra.cobrosPersonales||0));
+  const faltante=round2(Math.max(0,necesidad-apoyo));
+  const avg=historicalTripAverages();
+  const viajes=avg&&avg.net>0&&faltante>0?Math.ceil(faltante/avg.net):null;
+  return {necesidad,apoyo,faltante,avg,viajes,ruedaPendientePeriodo,compromisosPersonales,metaFacturacion:viajes&&avg?round2(viajes*avg.gross):null};
 }
 
 function buildAlerts(trips, expenses){
@@ -2934,10 +3247,12 @@ function buildAlerts(trips, expenses){
 function renderResumen(){
   const trips = DB.trips.filter(t=>inPeriod(t));
   const expenses = DB.expenses.filter(e=>inPeriod(e));
-  const utilidadOperativa = round2(periodTripsIngreso(trips) - periodCostosRuta(trips) - periodCargueroPagos(trips) - periodCostoFactura(trips) - periodExpensesByGrupo(expenses,'camion'));
+  const utilidadOperativa = round2(periodTripsIngreso(trips) - periodCostosRuta(trips) - periodCargueroPagos(trips) - periodCostoFactura(trips) - periodTruckExpensesForProfit(expenses));
   const gastoVida = round2(periodExpensesByGrupo(expenses,'personal'));
-  const utilidadNeta = round2(utilidadOperativa - gastoVida);
+  const ingresosExtraPeriodo = round2((DB.incomes||[]).filter(i=>inPeriod(i) && !incomeIsOpeningBalance(i)).reduce((s,i)=>s+(i.monto||0),0));
+  const utilidadNeta = round2(utilidadOperativa + ingresosExtraPeriodo - gastoVida);
   const bal = computeBalances();
+  const saldoInicialHistorico = round2((DB.incomes||[]).filter(incomeIsOpeningBalance).reduce((s,i)=>s+(i.monto||0),0));
   const deuda = totalDeudaActiva();
   const alerts = buildAlerts(trips, expenses);
 
@@ -2951,8 +3266,12 @@ function renderResumen(){
   const nextM = new Date(now.getFullYear(), now.getMonth()+1, 1);
   const debesProxMes = compromisosQueVencenMes(nextM.getFullYear(), nextM.getMonth()+1);
   const ruedaProxMes = aportesRuedaProximoMesEstimado();
+  const ruedaPendienteTotal = round2((DB.rotatingFunds||[]).reduce((s,f)=>s+fundPendingAmount(f),0));
   const flujoExtra = flujoComplementarioPeriodo();
   const flujoComplementario = round2(flujoExtra.ingresosExtra + flujoExtra.cobrosPersonales + flujoExtra.cobrosRueda - flujoExtra.prestamosEntregados - flujoExtra.aportesRueda);
+  const flujoCamion = truckCashFlowPeriod();
+  const recomendacion = personalWorkRecommendation(utilidadOperativa,gastoVida,flujoExtra);
+  const fuelLedger = buildFuelLedger();
 
   const rEste = rentabilidadRealMes(now.getFullYear(), now.getMonth()+1);
   const colorReal = rEste.real>=0 ? (rEste.real>=rEste.utilidadViajes*0.3 ? 'verde' : 'amarillo') : 'rojo';
@@ -2963,19 +3282,40 @@ function renderResumen(){
 
   return `
     <div class="hero-card">
-      <div class="hero-label">Utilidad Neta Real (periodo)</div>
-      <div class="hero-value ${utilidadNeta>=0?'pos':'neg'}">${fmtMoney(utilidadNeta)}</div>
-      <div class="hero-sub">Operativa del camión ${fmtMoney(utilidadOperativa)} − Gasto de vida ${fmtMoney(gastoVida)}</div>
+      <div class="hero-label">Rendimiento del camión (periodo)</div>
+      <div class="hero-value ${utilidadOperativa>=0?'pos':'neg'}">${fmtMoney(utilidadOperativa)}</div>
+      <div class="hero-sub">Solo viajes y costos del camión · incluye trabajo realizado aunque siga por cobrar</div>
     </div>
 
     ${alerts.map(a=>`<div class="alert ${a.level}"><span class="a-icon">${a.level==='danger'?'⚠':'●'}</span><span>${a.text}</span></div>`).join('')}
 
     <div class="section-label">Tu situación de un vistazo</div>
     <div class="dash-blocks">
-      <div class="dash-block tienes"><div class="lbl">💰 Lo que tienes</div><div class="val">${fmtMoney(round2(bal.efectivo+bal.banco))}</div><div class="sub">Efectivo ${fmtMoney(bal.efectivo)} · Banco ${fmtMoney(bal.banco)}</div></div>
+      <div class="dash-block tienes"><div class="lbl">💰 Patrimonio disponible</div><div class="val">${fmtMoney(round2(bal.efectivo+bal.banco))}</div><div class="sub">Efectivo ${fmtMoney(bal.efectivo)} · Banco ${fmtMoney(bal.banco)}${saldoInicialHistorico?` · Saldo inicial ${fmtMoney(saldoInicialHistorico)}`:''}</div></div>
+      <div class="dash-block tienes"><div class="lbl">🚚 Liquidez del camión</div><div class="val ${flujoCamion.neto>=0?'pos':'neg'}">${fmtMoney(flujoCamion.neto)}</div><div class="sub">Cobrado ${fmtMoney(flujoCamion.entradas)} · Pagado ${fmtMoney(flujoCamion.salidas)}</div></div>
       <div class="dash-block deben"><div class="lbl">⏳ Lo que te deben</div><div class="val">${fmtMoney(round2(disponibleCobrar+cuentasPersonalesPendientes))}</div><div class="sub">Viajes ${fmtMoney(disponibleCobrar)} · Personal ${fmtMoney(cuentasPersonalesPendientes)}${riesgoCobrar>0?` · Riesgo viajes ${fmtMoney(riesgoCobrar)}`:''}</div></div>
-      <div class="dash-block no-tuyo"><div class="lbl">⚠️ No es tuyo</div><div class="val">${fmtMoney(noEsTuyo)}</div><div class="sub">Pendiente a cargueros</div></div>
-      <div class="dash-block debes"><div class="lbl">📤 Lo que debes</div><div class="val">${fmtMoney(round2(debesEsteMes+debesProxMes+ruedaProxMes))}</div><div class="sub">Este mes ${fmtMoney(debesEsteMes)} · Próx ${fmtMoney(debesProxMes)} · Ruedas est. ${fmtMoney(ruedaProxMes)}</div></div>
+      <div class="dash-block debes"><div class="lbl">📤 Lo que debes</div><div class="val">${fmtMoney(round2(deuda+ruedaPendienteTotal))}</div><div class="sub">Deudas ${fmtMoney(deuda)} · Ruedas pendientes ${fmtMoney(ruedaPendienteTotal)} · Próximo mes ${fmtMoney(debesProxMes+ruedaProxMes)}</div></div>
+    </div>
+
+    ${noEsTuyo>0?`<div class="alert warn"><span class="a-icon">!</span><span><b>${fmtMoney(noEsTuyo)}</b> están pendientes de pago a cargueros y no son patrimonio libre.</span></div>`:''}
+
+    <div class="card">
+      <div class="section-label" style="margin-top:0;">Meta para cubrir gastos personales</div>
+      <div class="computed-line"><span>Necesidad personal del periodo</span><b>${fmtMoney(recomendacion.necesidad)}</b></div>
+      ${recomendacion.compromisosPersonales?`<div class="computed-line"><span>Compromisos personales próximos</span><b>${fmtMoney(recomendacion.compromisosPersonales)}</b></div>`:''}
+      ${recomendacion.ruedaPendientePeriodo?`<div class="computed-line"><span>Cuota de rueda todavía pendiente</span><b>${fmtMoney(recomendacion.ruedaPendientePeriodo)}</b></div>`:''}
+      <div class="computed-line"><span>Cubierto por trabajo y otros ingresos</span><b>${fmtMoney(recomendacion.apoyo)}</b></div>
+      <div class="computed-line"><span>Faltante</span><b class="${recomendacion.faltante>0?'neg':'pos'}">${fmtMoney(recomendacion.faltante)}</b></div>
+      ${recomendacion.faltante<=0?'<div class="alert success"><span class="a-icon">✓</span><span>La meta personal del periodo está cubierta.</span></div>':
+        recomendacion.viajes?`<div class="alert warn"><span class="a-icon">!</span><span>Necesitas aproximadamente <b>${recomendacion.viajes} viaje(s)</b> similares a tu promedio, con una meta de facturación cercana a <b>${fmtMoney(recomendacion.metaFacturacion)}</b>.</span></div>`:
+        `<div class="alert warn"><span class="a-icon">!</span><span>Faltan <b>${fmtMoney(recomendacion.faltante)}</b>. SANVI calculará viajes necesarios cuando existan al menos 3 viajes registrados.</span></div>`}
+    </div>
+
+    <div class="card">
+      <div class="section-label" style="margin-top:0;">Inventario estimado de diésel</div>
+      <div class="computed-line"><span>Combustible restante rastreado</span><b>${fuelCapacityReady()?fuelLedger.remainingGallons+' gal':'Configura el tanque'}</b></div>
+      <div class="computed-line"><span>Costo promedio vigente</span><b>${fuelLedger.averageCost?fmtMoney(fuelLedger.averageCost)+'/gal':'Sin datos'}</b></div>
+      <div class="computed-line"><span>Uso fuera de viajes detectado</span><b>${fuelCapacityReady()?fuelLedger.unassociatedGallons+' gal · '+fmtMoney(fuelLedger.unassociatedCost):'Sin medición'}</b></div>
     </div>
 
     <div class="card">
@@ -2993,21 +3333,21 @@ function renderResumen(){
     </div>
 
     <div class="card">
-      <div class="section-label" style="margin-top:0;">Rentabilidad real del mes ${realIcon}</div>
+      <div class="section-label" style="margin-top:0;">Resultado mensual del camión ${realIcon}</div>
       <div class="computed-line"><span>Utilidad viajes</span><b>${fmtMoney(rEste.utilidadViajes)}</b></div>
       <div class="computed-line"><span>− Egresos fijos</span><b>${fmtMoney(rEste.egresosFijos)}</b></div>
       <div class="computed-line"><span>− Cuotas compañía</span><b>${fmtMoney(rEste.cuotasCompania)}</b></div>
-      <div class="computed-line"><span>− Deudas que vencen este mes</span><b>${fmtMoney(rEste.deudasVencenMes)}</b></div>
+      <div class="computed-line"><span>− Deudas vinculadas al camión</span><b>${fmtMoney(rEste.deudasVencenMes)}</b></div>
       <div class="computed-line" style="border-top:1px solid var(--border);margin-top:4px;padding-top:8px;">
-        <span style="font-weight:700;color:var(--text);">= Lo que realmente te queda</span>
+        <span style="font-weight:700;color:var(--text);">= Resultado del camión</span>
         <b style="font-size:16px;color:${rEste.real>=0?'var(--green)':'var(--red)'};">${fmtMoney(rEste.real)}</b>
       </div>
     </div>
 
-    <div class="view-title">Este mes vs. próximo mes</div>
+    <div class="view-title">Camión y compromisos próximos</div>
     <div class="side-by-side">
-      <div class="sbs-card"><div class="lbl">Este mes (real)</div><div class="val ${rEste.real>=0?'pos':'neg'}">${fmtMoney(rEste.real)}</div></div>
-      <div class="sbs-card"><div class="lbl">Próximo mes (compromisos)</div><div class="val neg">-${fmtMoney(debesProxMes)}</div></div>
+      <div class="sbs-card"><div class="lbl">Resultado del camión este mes</div><div class="val ${rEste.real>=0?'pos':'neg'}">${fmtMoney(rEste.real)}</div></div>
+      <div class="sbs-card"><div class="lbl">Todos los compromisos del próximo mes</div><div class="val neg">-${fmtMoney(debesProxMes+ruedaProxMes)}</div></div>
     </div>
 
     <div class="caja-row">
@@ -3016,7 +3356,7 @@ function renderResumen(){
     </div>
 
     <div class="card">
-      <div class="view-title" style="margin-top:0;">Tendencia Utilidad Neta</div>
+      <div class="view-title" style="margin-top:0;">Tendencia del rendimiento del camión</div>
       <div class="chart-wrap">${renderTrendBars()}</div>
     </div>
 
@@ -3050,9 +3390,8 @@ function renderTrendBars(){
   const values = periods.map(p=>{
     const trips = DB.trips.filter(t=>inPeriodCustom(t,p.anio,p.semana,p.mes));
     const exps = DB.expenses.filter(e=>inPeriodCustom(e,p.anio,p.semana,p.mes));
-    const op = periodTripsIngreso(trips) - periodExpensesByGrupo(exps,'camion');
-    const vida = periodExpensesByGrupo(exps,'personal');
-    return round2(op-vida);
+    const op = periodTripsIngreso(trips) - periodCostosRuta(trips) - periodCargueroPagos(trips) - periodCostoFactura(trips) - periodTruckExpensesForProfit(exps);
+    return round2(op);
   });
   const maxAbs = Math.max(1, ...values.map(v=>Math.abs(v)));
   return `<div class="vbars">` + periods.map((p,i)=>{
@@ -3272,29 +3611,46 @@ function renderReporteCompania(){
 
 // Combustible (item 35-37): historial de consumo por viaje para detectar si el camión consume más de lo normal
 function tripConsumoGalones(t){
-  const cb = t.combustible||{};
-  if (cb.salida==null || cb.regreso==null) return null;
-  const pct = Math.max(0, Number(cb.salida) - Number(cb.regreso));
-  return round2((pct/100) * (DB.meta.capacidadTanqueGalones||200));
+  return tripConsumoGalonesMedido(t);
 }
 function renderReporteCombustible(){
   const trips = DB.trips.filter(t=>inPeriod(t) && tripConsumoGalones(t)!=null).sort((a,b)=>b.fecha.localeCompare(a.fecha));
   const consumos = trips.map(t=>tripConsumoGalones(t));
   const promedio = consumos.length ? round2(consumos.reduce((s,v)=>s+v,0)/consumos.length) : null;
+  const routeGroups={};
+  (DB.trips||[]).filter(t=>t.rutaCalculada&&tripConsumoGalones(t)!=null).forEach(t=>{
+    const key=(t.ruta||t.tipoCarga||'Sin nombre').trim().toLowerCase();
+    if(!routeGroups[key])routeGroups[key]={name:t.ruta||t.tipoCarga||'Sin nombre',items:[]};
+    routeGroups[key].items.push(t);
+  });
+  const learnedRoutes=Object.values(routeGroups).filter(g=>g.items.length>=3);
   return `
     <div class="stat-card"><div class="lbl">Consumo promedio por viaje</div><div class="val">${promedio!=null?promedio+' gal':'—'}</div><div class="sub">Calculado del medidor salida/regreso de cada viaje</div></div>
     <div class="view-title">Historial de consumo</div>
-    ${trips.length===0?'<div class="empty"><b>Sin datos de combustible este periodo</b>Usa el medidor en cada viaje (salida/regreso).</div>':`<div class="list">` + trips.map(t=>{
+    ${trips.length===0?'<div class="empty"><b>Sin datos suficientes este periodo</b>Confirma la capacidad del tanque y registra salida/regreso. La distancia se toma de la ruta calculada.</div>':`<div class="list">` + trips.map(t=>{
       const c = tripConsumoGalones(t);
+      const info=tripFuelInfo(t);
+      const km=t.rutaCalculada?Number(t.rutaCalculada.distanceKm)||0:0;
+      const kmGal=c>0&&km>0?round2(km/c):null;
       const anomalia = promedio!=null && promedio>0 && c > promedio*1.3;
       return `<div class="row" data-action="edit-trip" data-id="${t.id}">
         <div class="r-main">
           <div class="r-title">${fmtDateShort(t.fecha)} · ${esc(t.ruta || t.tipoCarga)} ${anomalia?'<span class="stamp mora" style="font-size:9px;padding:1px 4px;">ALTO</span>':''}</div>
-          <div class="r-sub">Salida ${t.combustible.salida}% · Regreso ${t.combustible.regreso}%</div>
+          <div class="r-sub">Salida ${t.combustible.salida}% · Regreso ${t.combustible.regreso}%${km?` · ${km} km estimados`:''}${kmGal?` · ${kmGal} km/gal`:''} · costo ${fmtMoney(info.cost||0)}</div>
         </div>
         <div class="r-val">${c} gal</div>
       </div>`;
     }).join('') + `</div>`}
+    <div class="view-title">Aprendizaje por ruta</div>
+    ${learnedRoutes.length?`<div class="list">${learnedRoutes.map(g=>{
+      const n=g.items.length;
+      const km=round2(g.items.reduce((s,t)=>s+(Number(t.rutaCalculada.distanceKm)||0),0)/n);
+      const gal=round2(g.items.reduce((s,t)=>s+(tripConsumoGalones(t)||0),0)/n);
+      const fuel=round2(g.items.reduce((s,t)=>s+(tripFuelCost(t)||0),0)/n);
+      const gross=round2(g.items.reduce((s,t)=>s+tripIngresoBruto(t),0)/n);
+      const util=round2(g.items.reduce((s,t)=>s+tripUtilidadNeta(t),0)/n);
+      return `<div class="row"><div class="r-main"><div class="r-title">${esc(g.name)}</div><div class="r-sub">${n} viajes · ${km} km · ${gal} gal · diésel ${fmtMoney(fuel)} · cobro ${fmtMoney(gross)}</div></div><div class="r-val ${util>=0?'pos':'neg'}">${fmtMoney(util)}</div></div>`;
+    }).join('')}</div>`:'<div class="empty"><b>Aún aprendiendo</b>Se mostrarán promedios después de 3 viajes comparables por ruta.</div>'}
   `;
 }
 
@@ -3377,17 +3733,17 @@ function csvEscape(v){
   return /[",\n]/.test(s) ? `"${s}"` : s;
 }
 function exportCSV(){
-  const tripRows = [['id','fecha','semana','mes','anio','tipoCarga','origenViaje','productor','telefono','ruta',
+  const tripRows = [['id','fecha','hora','semana','mes','anio','tipoCarga','origenViaje','productor','telefono','ruta','distanciaEstimadaKm',
     'valorFlete','anticipo','descuento','serviciosAdicionales','saldoPendiente','estado','metodoRecibo',
     'requiereFactura','facturaPct','costoFactura','cargueroNombre','cargueroMonto','cargueroPagado',
     'costoDiesel','costoPeaje','costoComida','costoOtro','utilidadNeta',
     'combustibleSalida','combustibleRegreso','kmInicial','kmFinal','nota']];
   DB.trips.forEach(t=>tripRows.push([
-    t.id,t.fecha,t.semana,t.mes,t.anio,t.tipoCarga,t.origenViaje||'',t.productorNombre,t.productorTelefono,t.ruta,
+    t.id,t.fecha,t.hora||'',t.semana,t.mes,t.anio,t.tipoCarga,t.origenViaje||'',t.productorNombre,t.productorTelefono,t.ruta,t.rutaCalculada?t.rutaCalculada.distanceKm:'',
     t.valorFlete,t.anticipo,t.descuento,serviciosAdicionalesTotal(t),tripSaldoPendiente(t),t.estado,t.metodoRecibo,
     t.requiereFactura?'Sí':'No', t.facturaPct||0, costoFacturaTrip(t),
     t.carguero?t.carguero.nombre:'', t.carguero?t.carguero.monto:'', t.carguero?(t.carguero.pagado?'Pagado':'Pendiente'):'',
-    (t.costosRuta||{}).diesel||0,(t.costosRuta||{}).peaje||0,(t.costosRuta||{}).comida||0,(t.costosRuta||{}).otro||0,
+    tripFuelCost(t),(t.costosRuta||{}).peaje||0,(t.costosRuta||{}).comida||0,(t.costosRuta||{}).otro||0,
     tripUtilidadNeta(t),
     (t.combustible||{}).salida!=null?(t.combustible||{}).salida:'', (t.combustible||{}).regreso!=null?(t.combustible||{}).regreso:'',
     t.kmInicial,t.kmFinal,t.nota
@@ -3429,6 +3785,7 @@ function renderConfig(){
       <div class="field"><label>Plazo normal de cobro (días) — semáforo de cuentas por cobrar</label><input type="number" id="cfgDiasPlazoCobro" value="${DB.meta.diasPlazoCobro}"></div>
       <div class="field"><label>Días sin pagar a un carguero para alertar</label><input type="number" id="cfgDiasAlertaCarguero" value="${DB.meta.diasAlertaCarguero}"></div>
       <div class="field"><label>Capacidad del tanque (galones)</label><input type="number" id="cfgCapacidadTanque" value="${DB.meta.capacidadTanqueGalones}"></div>
+      <div class="measurement-toggle"><input type="checkbox" id="cfgCapacidadConfirmada" ${DB.meta.capacidadTanqueConfirmada?'checked':''}><label for="cfgCapacidadConfirmada">Confirmo que esta es la capacidad real del tanque</label></div>
       <div class="field"><label>% del ingreso mensual promedio para alerta de endeudamiento crítico</label><input type="number" id="cfgThreshold" value="${DB.meta.thresholdEndeudamientoPct}"></div>
       <button class="btn btn-secondary" data-action="save-alert-settings">Guardar</button>
     </div>
@@ -3456,6 +3813,7 @@ function saveAlertSettings(){
   DB.meta.diasPlazoCobro = Number(document.getElementById('cfgDiasPlazoCobro').value)||8;
   DB.meta.diasAlertaCarguero = Number(document.getElementById('cfgDiasAlertaCarguero').value)||5;
   DB.meta.capacidadTanqueGalones = Number(document.getElementById('cfgCapacidadTanque').value)||200;
+  DB.meta.capacidadTanqueConfirmada = document.getElementById('cfgCapacidadConfirmada').checked;
   DB.meta.thresholdEndeudamientoPct = Number(document.getElementById('cfgThreshold').value)||60;
   touchSettings();
   saveDB(); showToast('Configuración guardada'); render();
@@ -3544,7 +3902,7 @@ function fmtSyncDate(iso){
   return d.toLocaleString('es-EC', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
 }
 function syncableMeta(){
-  const keys = ['empresaNombre','pin','diasMoraAlerta','diasPlazoCobro','diasAlertaCarguero','capacidadTanqueGalones','thresholdEndeudamientoPct','settingsUpdatedAt'];
+  const keys = ['empresaNombre','pin','diasMoraAlerta','diasPlazoCobro','diasAlertaCarguero','capacidadTanqueGalones','capacidadTanqueConfirmada','ubicacionBase','thresholdEndeudamientoPct','settingsUpdatedAt'];
   const data = {};
   keys.forEach(k=>{ data[k] = DB.meta[k]; });
   return data;
@@ -3552,7 +3910,7 @@ function syncableMeta(){
 function applySyncedMeta(data){
   if (!data || typeof data !== 'object') return false;
   const oldPin = DB.meta.pin || null;
-  ['empresaNombre','pin','diasMoraAlerta','diasPlazoCobro','diasAlertaCarguero','capacidadTanqueGalones','thresholdEndeudamientoPct','settingsUpdatedAt'].forEach(k=>{
+  ['empresaNombre','pin','diasMoraAlerta','diasPlazoCobro','diasAlertaCarguero','capacidadTanqueGalones','capacidadTanqueConfirmada','ubicacionBase','thresholdEndeudamientoPct','settingsUpdatedAt'].forEach(k=>{
     if (data[k] !== undefined && data[k] !== null) DB.meta[k] = data[k];
   });
   return (oldPin || null) !== (DB.meta.pin || null);
@@ -3627,6 +3985,7 @@ function applyCloudState(json, opts){
   });
   if (!opts.skipSingletons && Array.isArray(json.tables.categories) && json.tables.categories[0] && json.tables.categories[0].data){
     DB.categories = json.tables.categories[0].data;
+    fillDefaults(DB);
     changed = true;
   }
   if (!opts.skipSingletons && Array.isArray(json.tables.settings) && json.tables.settings[0] && json.tables.settings[0].data){
@@ -3759,6 +4118,7 @@ async function pullSync(){
     });
     if (json.tables && Array.isArray(json.tables.categories) && json.tables.categories[0] && json.tables.categories[0].data){
       DB.categories = json.tables.categories[0].data;
+      fillDefaults(DB);
     }
     if (json.tables && Array.isArray(json.tables.settings) && json.tables.settings[0] && json.tables.settings[0].data){
       pinChanged = applySyncedMeta(json.tables.settings[0].data) || pinChanged;
@@ -3878,6 +4238,13 @@ function handleAction(action, el, ev){
     case 'trip-serv-add': tripServAdd(); break;
     case 'trip-serv-remove': tripServRemove(Number(el.dataset.idx)); break;
     case 'toggle-carguero-pagado': toggleCargueroPagado(id); break;
+    case 'route-capture-location': captureRouteLocation(); break;
+    case 'route-remove-point': removeRoutePoint(Number(el.dataset.idx)); break;
+    case 'route-clear': tripFormRoutePoints=[]; tripFormRouteData=null; renderRoutePointList(); refreshTripRouteMap(); break;
+    case 'route-calculate': calculateTripRoute(); break;
+    case 'route-load-saved': loadSavedTripRoute(); break;
+    case 'route-use-base': useBaseRoutePoint(); break;
+    case 'route-save-base': saveFirstRoutePointAsBase(); break;
 
     // Gastos
     case 'new-expense': openExpenseForm(); break;
@@ -3993,7 +4360,7 @@ document.addEventListener('click', function(ev){
 document.addEventListener('DOMContentLoaded', init);
 if ('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('./service-worker.js?v=20260623-3').catch(()=>{});
+    navigator.serviceWorker.register('./service-worker.js?v=20260626-4').catch(()=>{});
   });
 }
 </script>
